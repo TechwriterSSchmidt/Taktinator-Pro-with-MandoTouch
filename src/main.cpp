@@ -224,8 +224,9 @@ void drawEditor() {
 
   tft.setTextSize(2);
   tft.setTextDatum(TL_DATUM);
+  // Reduced spacing to fit buttons
   for (int i = 0; i < sequence.size() && i < 5; i++) {
-    int y = 40 + i * 35;
+    int y = 35 + i * 32;
     uint16_t color = (i == selectedStepIndex) ? TFT_YELLOW : TFT_WHITE;
     tft.setTextColor(color, TFT_BLACK);
     
@@ -239,17 +240,17 @@ void drawEditor() {
     tft.drawString(line, 20, y);
   }
 
-  int yBase = 220;
+  int yBase = 200; // Moved up from 220
   tft.setTextSize(2);
   tft.setTextDatum(MC_DATUM);
   
-  tft.drawRoundRect(10, yBase, 60, 40, 5, TFT_GREEN); tft.drawString("ADD", 40, yBase + 20);
-  tft.drawRoundRect(80, yBase, 60, 40, 5, TFT_RED); tft.drawString("DEL", 110, yBase + 20);
-  tft.drawRoundRect(150, yBase, 60, 40, 5, TFT_BLUE); tft.drawString("BACK", 180, yBase + 20);
+  tft.drawRoundRect(10, yBase, 60, 35, 5, TFT_GREEN); tft.drawString("ADD", 40, yBase + 17);
+  tft.drawRoundRect(80, yBase, 60, 35, 5, TFT_RED); tft.drawString("DEL", 110, yBase + 17);
+  tft.drawRoundRect(150, yBase, 60, 35, 5, TFT_BLUE); tft.drawString("BACK", 180, yBase + 17);
   
   uint16_t playColor = isSequenceMode ? TFT_RED : TFT_GREEN;
   String playLabel = isSequenceMode ? "STOP" : "RUN";
-  tft.drawRoundRect(220, yBase, 90, 40, 5, playColor); tft.drawString(playLabel, 265, yBase + 20);
+  tft.drawRoundRect(220, yBase, 90, 35, 5, playColor); tft.drawString(playLabel, 265, yBase + 17);
 
   if (selectedStepIndex >= 0 && selectedStepIndex < sequence.size()) {
      int xBase = 220;
@@ -296,24 +297,24 @@ void drawSoundSelect() {
     }
     
     // File List
-    tft.drawRect(10, 60, 300, 150, TFT_WHITE);
+    tft.drawRect(10, 60, 300, 130, TFT_WHITE); // Reduced height
     tft.setTextSize(2);
     
-    int y = 70;
+    int y = 65; // Moved up slightly
     for (int i = soundListScroll; i < wavFiles.size() && i < soundListScroll + 4; i++) {
         if (i == selectedSoundIndex) tft.setTextColor(TFT_YELLOW, TFT_BLACK);
         else tft.setTextColor(TFT_WHITE, TFT_BLACK);
         
         tft.drawString(wavFiles[i], 20, y);
-        y += 35;
+        y += 32; // Reduced spacing
     }
     
     // Controls
-    int yBase = 220;
+    int yBase = 200; // Moved up from 220
     tft.setTextDatum(MC_DATUM);
-    tft.drawRoundRect(10, yBase, 80, 40, 5, TFT_BLUE); tft.drawString("BACK", 50, yBase + 20);
-    tft.drawRoundRect(100, yBase, 100, 40, 5, TFT_ORANGE); tft.drawString("REFRESH", 150, yBase + 20);
-    tft.drawRoundRect(210, yBase, 100, 40, 5, TFT_GREEN); tft.drawString("SELECT", 260, yBase + 20);
+    tft.drawRoundRect(10, yBase, 80, 35, 5, TFT_BLUE); tft.drawString("BACK", 50, yBase + 17);
+    tft.drawRoundRect(100, yBase, 100, 35, 5, TFT_ORANGE); tft.drawString("REFRESH", 150, yBase + 17);
+    tft.drawRoundRect(210, yBase, 100, 35, 5, TFT_GREEN); tft.drawString("SELECT", 260, yBase + 17);
 }
 
 void refreshSoundList() {
@@ -337,8 +338,8 @@ void handleTouchSoundSelect(int x, int y) {
     }
     
     // List Selection
-    if (y > 60 && y < 210) {
-        int idx = (y - 70) / 35 + soundListScroll;
+    if (y > 60 && y < 190) { // Adjusted range
+        int idx = (y - 65) / 32 + soundListScroll;
         if (idx >= 0 && idx < wavFiles.size()) {
             selectedSoundIndex = idx;
             drawSoundSelect();
@@ -346,7 +347,7 @@ void handleTouchSoundSelect(int x, int y) {
         return;
     }
     
-    int yBase = 220;
+    int yBase = 200;
     // BACK
     if (y > yBase && x < 90) {
         toggleSoundSelect();
@@ -375,7 +376,7 @@ void handleTouchSoundSelect(int x, int y) {
 void handleTouchEditor(int x, int y) {
   // List Selection
   for (int i = 0; i < sequence.size() && i < 5; i++) {
-    int yPos = 40 + i * 35;
+    int yPos = 35 + i * 32; // Adjusted
     if (y > yPos && y < yPos + 30 && x < 200) {
       selectedStepIndex = i;
       drawEditor();
@@ -383,9 +384,9 @@ void handleTouchEditor(int x, int y) {
     }
   }
 
-  int yBase = 220;
+  int yBase = 200; // Adjusted
   // ADD
-  if (y > yBase && y < yBase + 40 && x > 10 && x < 70) {
+  if (y > yBase && y < yBase + 35 && x > 10 && x < 70) {
     if (sequence.size() < 5) {
       sequence.push_back({4, 4, 120});
       selectedStepIndex = sequence.size() - 1;
@@ -393,7 +394,7 @@ void handleTouchEditor(int x, int y) {
     }
   }
   // DEL
-  if (y > yBase && y < yBase + 40 && x > 80 && x < 140) {
+  if (y > yBase && y < yBase + 35 && x > 80 && x < 140) {
     if (!sequence.empty() && selectedStepIndex >= 0) {
       sequence.erase(sequence.begin() + selectedStepIndex);
       if (selectedStepIndex >= sequence.size()) selectedStepIndex = sequence.size() - 1;
@@ -401,11 +402,11 @@ void handleTouchEditor(int x, int y) {
     }
   }
   // BACK
-  if (y > yBase && y < yBase + 40 && x > 150 && x < 210) {
+  if (y > yBase && y < yBase + 35 && x > 150 && x < 210) {
     toggleEditor();
   }
   // RUN/STOP
-  if (y > yBase && y < yBase + 40 && x > 220 && x < 310) {
+  if (y > yBase && y < yBase + 35 && x > 220 && x < 310) {
     isSequenceMode = !isSequenceMode;
     isPlaying = isSequenceMode;
     currentStepIndex = 0;
