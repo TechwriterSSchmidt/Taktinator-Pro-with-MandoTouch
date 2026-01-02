@@ -41,20 +41,33 @@ bool SoundManager::begin() {
 
 std::vector<String> SoundManager::listWavsOnSD() {
     std::vector<String> files;
-    // Note: Caller must handle SPI conflict (disable Touch, enable SD)
     
-    SPI.begin(18, 19, 23, 5); // SCK, MISO, MOSI, SS
-    if(!SD.begin(5, SPI)){
-        Serial.println("SD Mount Failed");
-        SPI.end();
+    Serial.println("--- Listing SD Files ---");
+    
+    // Ensure CS is high before starting
+    pinMode(5, OUTPUT);
+    digitalWrite(5, HIGH);
+    delay(10);
+
+    // Use a local SPI instance for SD to ensure clean state
+    SPIClass sdSpi(VSPI);
+    sdSpi.begin(18, 19, 23, 5); // SCK, MISO, MOSI, SS
+    
+    // Try mounting with lower frequency (4MHz) for better stability
+    if(!SD.begin(5, sdSpi, 4000000)){
+        Serial.println("SD Mount Failed! Check card format (FAT32) and connections.");
+        Serial.println("Debug: Pins SCK=18, MISO=19, MOSI=23, CS=5");
+        sdSpi.end();
         return files;
     }
     
+    Serial.println("SD Mounted Successfully");
+    
     File root = SD.open("/");
     if(!root){
-        Serial.println("Failed to open directory");
+        Serial.println("Failed to open root directory");
         SD.end();
-        SPI.end();
+        sdSpi.end();
         return files;
     }
     
@@ -62,22 +75,39 @@ std::vector<String> SoundManager::listWavsOnSD() {
     while(file){
         if(!file.isDirectory()){
             String name = String(file.name());
-            if(name.endsWith(".wav") || name.endsWith(".WAV")){
+            // Case insensitive check
+            String upperName = name;
+            upperName.toUpperCase();
+            
+            if(upperName.endsWith(".WAV")){
+                Serial.print("Found WAV: "); Serial.println(name);
                 files.push_back(name);
+            } else {
+                Serial.print("Skipping: "); Serial.println(name);
             }
         }
         file = root.openNextFile();
     }
-    SD.end(); // Release SPI
-    SPI.end();
+    SD.end(); 
+    sdSpi.end();
+    Serial.println("--- End List ---");
     return files;
 }
 
 bool SoundManager::selectSound(SoundType type, String sdFilename) {
-    // Note: Caller must handle SPI conflict
-    SPI.begin(18, 19, 23, 5);
-    if(!SD.begin(5, SPI)) {
-        SPI.end();
+    Serial.print("Selecting sound: "); Serial.println(sdFilename);
+    
+    // Ensure CS is high
+    pinMode(5, OUTPUT);
+    digitalWrite(5, HIGH);
+    delay(10);
+
+    SPIClass sdSpi(VSPI);
+    sdSpi.begin(18, 19, 23, 5);
+    
+    if(!SD.begin(5, sdSpi, 4000000)) {
+        Serial.println("SD Mount Failed during selection");
+        sdSpi.end();
         return false;
     }
     
@@ -86,11 +116,22 @@ bool SoundManager::selectSound(SoundType type, String sdFilename) {
     // Copy file
     if (LittleFS.exists(destPath)) LittleFS.remove(destPath);
     
-    File source = SD.open(sdFilename, "r");
-    if (!source) { SD.end(); SPI.end(); return false; }
+    File source = SD.open(sdFilename, "r"); // Removed leading slash requirement
+    if (!source) { 
+        // Try adding slash if missing
+        if (!sdFilename.startsWith("/")) source = SD.open("/" + sdFilename, "r");
+    }
+    
+    if (!source) { 
+        Serial.println("Failed to open source file on SD");
+        SD.end(); sdSpi.end(); return false; 
+    }
     
     File dest = LittleFS.open(destPath, "w");
-    if (!dest) { source.close(); SD.end(); SPI.end(); return false; }
+    if (!dest) { 
+        Serial.println("Failed to open dest file on LittleFS");
+        source.close(); SD.end(); sdSpi.end(); return false; 
+    }
     
     uint8_t buf[512];
     while (source.available()) {
@@ -101,7 +142,9 @@ bool SoundManager::selectSound(SoundType type, String sdFilename) {
     dest.close();
     source.close();
     SD.end();
-    SPI.end();
+    sdSpi.end();
+    
+    Serial.println("Copy successful, reloading buffer...");
     
     // Reload buffer
     if (type == SOUND_DOWNBEAT) {

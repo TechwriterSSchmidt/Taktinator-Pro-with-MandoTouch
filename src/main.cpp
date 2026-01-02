@@ -320,7 +320,11 @@ void drawSoundSelect() {
 void refreshSoundList() {
     // Handle SPI Conflict
     touchSpi.end();
+    delay(50); // Give time for SPI bus to settle
+    
     wavFiles = soundManager.listWavsOnSD();
+    
+    delay(50); // Give time before restarting Touch
     touchSpi.begin(XPT2046_CLK, XPT2046_MISO, XPT2046_MOSI, XPT2046_CS);
     
     selectedSoundIndex = -1;
@@ -365,7 +369,9 @@ void handleTouchSoundSelect(int x, int y) {
             tft.drawString("Copying...", 160, 120);
             
             touchSpi.end();
+            delay(50);
             soundManager.selectSound(targetSoundType, wavFiles[selectedSoundIndex]);
+            delay(50);
             touchSpi.begin(XPT2046_CLK, XPT2046_MISO, XPT2046_MOSI, XPT2046_CS);
             
             drawSoundSelect();
