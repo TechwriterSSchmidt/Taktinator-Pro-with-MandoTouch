@@ -33,7 +33,7 @@ public:
     bool areSoundsLoaded() { return downbeat.data != nullptr && beat.data != nullptr; }
     
     // Called by timer interrupt
-    void handleInterrupt();
+    void IRAM_ATTR handleInterrupt();
 
 private:
     Preferences prefs;

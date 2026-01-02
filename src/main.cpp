@@ -296,7 +296,7 @@ void drawSoundSelect() {
     }
     
     // File List
-    tft.drawRect(10, 60, 300, 130, TFT_WHITE); // Reduced height
+    tft.drawRect(10, 60, 240, 130, TFT_WHITE); // Reduced width for scroll buttons
     tft.setTextSize(2);
     
     int y = 65; // Moved up slightly
@@ -307,6 +307,14 @@ void drawSoundSelect() {
         tft.drawString(wavFiles[i], 20, y);
         y += 32; // Reduced spacing
     }
+
+    // Scroll Buttons
+    tft.setTextDatum(MC_DATUM);
+    tft.drawRoundRect(260, 60, 50, 60, 5, TFT_DARKGREY);
+    tft.drawString("/\\", 285, 90); // Up
+    
+    tft.drawRoundRect(260, 130, 50, 60, 5, TFT_DARKGREY);
+    tft.drawString("\\/", 285, 160); // Down
     
     // Controls
     int yBase = 200; // Moved up from 220
@@ -333,8 +341,26 @@ void handleTouchSoundSelect(int x, int y) {
         return;
     }
     
+    // Scroll Up
+    if (x > 260 && y > 60 && y < 120) {
+        if (soundListScroll > 0) {
+            soundListScroll--;
+            drawSoundSelect();
+        }
+        return;
+    }
+
+    // Scroll Down
+    if (x > 260 && y > 130 && y < 190) {
+        if (soundListScroll + 4 < wavFiles.size()) {
+            soundListScroll++;
+            drawSoundSelect();
+        }
+        return;
+    }
+    
     // List Selection
-    if (y > 60 && y < 190) { // Adjusted range
+    if (x < 250 && y > 60 && y < 190) { // Adjusted range and width
         int idx = (y - 65) / 32 + soundListScroll;
         if (idx >= 0 && idx < wavFiles.size()) {
             selectedSoundIndex = idx;
@@ -561,6 +587,8 @@ void setup() {
   tft.setTextColor(TFT_CYAN, TFT_BLACK);
   tft.setTextSize(2);
   tft.drawCentreString("With MandoTouch", 160, 130, 1);
+
+  delay(3000); // Show logo for 3 seconds
 
   ts.begin();
   pinMode(XPT2046_IRQ, INPUT);

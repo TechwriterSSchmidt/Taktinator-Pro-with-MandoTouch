@@ -369,7 +369,7 @@ void SoundManager::setVolume(uint8_t vol) {
     volume = vol;
 }
 
-void SoundManager::handleInterrupt() {
+void IRAM_ATTR SoundManager::handleInterrupt() {
     if (!playing || !currentBuffer || !currentBuffer->data) {
         timerAlarmDisable(timer); // Stop interrupt
         return;
