@@ -43,14 +43,18 @@ std::vector<String> SoundManager::listWavsOnSD() {
     std::vector<String> files;
     // Note: Caller must handle SPI conflict (disable Touch, enable SD)
     
-    if(!SD.begin(5)){
+    SPI.begin(18, 19, 23, 5); // SCK, MISO, MOSI, SS
+    if(!SD.begin(5, SPI)){
         Serial.println("SD Mount Failed");
+        SPI.end();
         return files;
     }
     
     File root = SD.open("/");
     if(!root){
         Serial.println("Failed to open directory");
+        SD.end();
+        SPI.end();
         return files;
     }
     
@@ -65,12 +69,17 @@ std::vector<String> SoundManager::listWavsOnSD() {
         file = root.openNextFile();
     }
     SD.end(); // Release SPI
+    SPI.end();
     return files;
 }
 
 bool SoundManager::selectSound(SoundType type, String sdFilename) {
     // Note: Caller must handle SPI conflict
-    if(!SD.begin(5)) return false;
+    SPI.begin(18, 19, 23, 5);
+    if(!SD.begin(5, SPI)) {
+        SPI.end();
+        return false;
+    }
     
     String destPath = (type == SOUND_DOWNBEAT) ? "/downbeat.wav" : "/beat.wav";
     
@@ -78,10 +87,10 @@ bool SoundManager::selectSound(SoundType type, String sdFilename) {
     if (LittleFS.exists(destPath)) LittleFS.remove(destPath);
     
     File source = SD.open(sdFilename, "r");
-    if (!source) { SD.end(); return false; }
+    if (!source) { SD.end(); SPI.end(); return false; }
     
     File dest = LittleFS.open(destPath, "w");
-    if (!dest) { source.close(); SD.end(); return false; }
+    if (!dest) { source.close(); SD.end(); SPI.end(); return false; }
     
     uint8_t buf[512];
     while (source.available()) {
@@ -92,6 +101,7 @@ bool SoundManager::selectSound(SoundType type, String sdFilename) {
     dest.close();
     source.close();
     SD.end();
+    SPI.end();
     
     // Reload buffer
     if (type == SOUND_DOWNBEAT) {
