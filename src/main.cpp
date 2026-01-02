@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <TFT_eSPI.h>
 #include <SPI.h>
-#include <XPT2046_Touchscreen.h>
+#include <XPT2046_Bitbang.h>
 #include <vector>
 #include "SoundManager.h"
 
@@ -15,9 +15,8 @@ TFT_eSPI tft = TFT_eSPI();
 #define XPT2046_CLK 25
 #define XPT2046_CS 33
 
-// Use a separate SPI instance for Touch
-SPIClass touchSpi = SPIClass(VSPI);
-XPT2046_Touchscreen ts(XPT2046_CS, XPT2046_IRQ);
+// Use BitBang SPI for Touch to avoid conflict with SD (VSPI)
+XPT2046_Bitbang ts(XPT2046_MOSI, XPT2046_MISO, XPT2046_CLK, XPT2046_CS);
 
 // --- UI Constants ---
 #define SLIDER_X 20
@@ -318,14 +317,7 @@ void drawSoundSelect() {
 }
 
 void refreshSoundList() {
-    // Handle SPI Conflict
-    touchSpi.end();
-    delay(50); // Give time for SPI bus to settle
-    
     wavFiles = soundManager.listWavsOnSD();
-    
-    delay(50); // Give time before restarting Touch
-    touchSpi.begin(XPT2046_CLK, XPT2046_MISO, XPT2046_MOSI, XPT2046_CS);
     
     selectedSoundIndex = -1;
     soundListScroll = 0;
@@ -368,11 +360,7 @@ void handleTouchSoundSelect(int x, int y) {
             tft.fillScreen(TFT_BLACK);
             tft.drawString("Copying...", 160, 120);
             
-            touchSpi.end();
-            delay(50);
             soundManager.selectSound(targetSoundType, wavFiles[selectedSoundIndex]);
-            delay(50);
-            touchSpi.begin(XPT2046_CLK, XPT2046_MISO, XPT2046_MOSI, XPT2046_CS);
             
             drawSoundSelect();
         }
@@ -540,13 +528,15 @@ void increaseBPM1() { bpm += 1; if (bpm > 208) bpm = 208; updateBPM(); }
 void decreaseBPM1() { bpm -= 1; if (bpm < 40) bpm = 40; updateBPM(); }
 
 void increaseVol() { 
-  volume += 2; 
+  volume += 5; 
   if (volume > 255) volume = 255; 
+  soundManager.setVolume((uint8_t)volume);
   updateVolume(); 
 }
 void decreaseVol() { 
-  volume -= 2; 
+  volume -= 5; 
   if (volume < 0) volume = 0; 
+  soundManager.setVolume((uint8_t)volume);
   updateVolume(); 
 }
 
@@ -559,19 +549,37 @@ void setup() {
 
   tft.init();
   tft.setRotation(1);
+  tft.invertDisplay(true); // Re-enable inversion for CYD display
+  tft.fillScreen(TFT_BLACK);
+  
+  // Title
+  tft.setTextColor(TFT_WHITE, TFT_BLACK);
+  tft.setTextSize(3);
+  tft.drawCentreString("Taktinator Pro", 160, 90, 1);
 
-  touchSpi.begin(XPT2046_CLK, XPT2046_MISO, XPT2046_MOSI, XPT2046_CS);
-  if (!ts.begin(touchSpi)) {
-    Serial.println("Failed to start touchscreen controller");
-  }
-  ts.setRotation(1);
+  // Subtitle
+  tft.setTextColor(TFT_CYAN, TFT_BLACK);
+  tft.setTextSize(2);
+  tft.drawCentreString("With MandoTouch", 160, 130, 1);
+
+  ts.begin();
+  pinMode(XPT2046_IRQ, INPUT);
+  // ts.setRotation(1); // Bitbang lib might not support rotation or handles it differently
   
   // Init Sound Manager
   if (!soundManager.begin()) {
       Serial.println("Sound Manager Init Failed");
   }
+  soundManager.setVolume((uint8_t)volume);
   
-  drawUI();
+  // Check if sounds are loaded, if not, go to Sound Select
+  if (!soundManager.areSoundsLoaded()) {
+      Serial.println("Sounds missing or invalid. Opening Sound Select...");
+      currentScreen = SCREEN_SOUND_SELECT;
+      refreshSoundList();
+  } else {
+      drawUI();
+  }
 }
 
 void loop() {
@@ -613,61 +621,64 @@ void loop() {
     }
   }
 
-  // Touch Logic
-  if (ts.touched()) {
-    TS_Point p = ts.getPoint();
-    int touchX = map(p.x, 200, 3700, 0, 320);
-    int touchY = map(p.y, 240, 3800, 0, 240);
-    if (touchX < 0) touchX = 0; if (touchX > 320) touchX = 320;
-    if (touchY < 0) touchY = 0; if (touchY > 240) touchY = 240;
-
-    if (currentScreen == SCREEN_EDITOR) {
-       if (millis() - lastTouchTime > 200) {
-          handleTouchEditor(touchX, touchY);
-          lastTouchTime = millis();
-       }
-       return;
-    }
-    
-    if (currentScreen == SCREEN_SOUND_SELECT) {
-       if (millis() - lastTouchTime > 200) {
-          handleTouchSoundSelect(touchX, touchY);
-          lastTouchTime = millis();
-       }
-       return;
-    }
-
-    // Slider
-    if (touchY > SLIDER_Y - 15 && touchY < SLIDER_Y + SLIDER_H + 15) {
-       float pos = (float)(touchX - SLIDER_X) / (float)SLIDER_W;
-       if (pos < 0) pos = 0; if (pos > 1) pos = 1;
-       bpm = 40 + (int)(pos * (208 - 40));
-       updateBPM();
-       delay(20); 
-       return; 
-    }
-
-    // Buttons
-    if (millis() - lastTouchTime > 200) { 
-      for (int i = 0; i < numButtons; i++) {
-        if (touchX > buttons[i].x && touchX < buttons[i].x + buttons[i].w &&
-            touchY > buttons[i].y && touchY < buttons[i].y + buttons[i].h) {
-          
-          tft.drawRoundRect(buttons[i].x, buttons[i].y, buttons[i].w, buttons[i].h, 5, TFT_WHITE);
-          buttons[i].action();
-          delay(100); 
-          
-          if (buttons[i].isCustomDraw) {
-             drawButton(i); 
-          } else {
-             tft.drawRoundRect(buttons[i].x, buttons[i].y, buttons[i].w, buttons[i].h, 5, buttons[i].color);
-             if (i == 4) drawButton(i);
-          }
-          
-          lastTouchTime = millis();
-          break; 
+  // Touch Logic (Throttled to 20ms)
+  static unsigned long lastTouchCheck = 0;
+  if (millis() - lastTouchCheck > 20) {
+      lastTouchCheck = millis();
+      
+      if (digitalRead(XPT2046_IRQ) == LOW) {
+        TouchPoint p = ts.getTouch();
+        // Check zRaw for pressure to avoid false positives if needed, though IRQ is usually reliable
+        if (p.zRaw > 200) {
+            int touchX = map(p.xRaw, 200, 3700, 0, 320);
+            int touchY = map(p.yRaw, 240, 3800, 0, 240);
+            if (touchX < 0) touchX = 0; if (touchX > 320) touchX = 320;
+            if (touchY < 0) touchY = 0; if (touchY > 240) touchY = 240;
+        
+            if (currentScreen == SCREEN_EDITOR) {
+               if (millis() - lastTouchTime > 200) {
+                  handleTouchEditor(touchX, touchY);
+                  lastTouchTime = millis();
+               }
+            } else if (currentScreen == SCREEN_SOUND_SELECT) {
+               if (millis() - lastTouchTime > 200) {
+                  handleTouchSoundSelect(touchX, touchY);
+                  lastTouchTime = millis();
+               }
+            } else {
+        
+            // Slider
+            if (touchY > SLIDER_Y - 15 && touchY < SLIDER_Y + SLIDER_H + 15) {
+               float pos = (float)(touchX - SLIDER_X) / (float)SLIDER_W;
+               if (pos < 0) pos = 0; if (pos > 1) pos = 1;
+               bpm = 40 + (int)(pos * (208 - 40));
+               updateBPM();
+            } else {
+        
+                // Buttons
+                if (millis() - lastTouchTime > 200) { 
+                  for (int i = 0; i < numButtons; i++) {
+                    if (touchX > buttons[i].x && touchX < buttons[i].x + buttons[i].w &&
+                        touchY > buttons[i].y && touchY < buttons[i].y + buttons[i].h) {
+                      
+                      tft.drawRoundRect(buttons[i].x, buttons[i].y, buttons[i].w, buttons[i].h, 5, TFT_WHITE);
+                      buttons[i].action();
+                      
+                      if (buttons[i].isCustomDraw) {
+                         drawButton(i); 
+                      } else {
+                         tft.drawRoundRect(buttons[i].x, buttons[i].y, buttons[i].w, buttons[i].h, 5, buttons[i].color);
+                         if (i == 4) drawButton(i);
+                      }
+                      
+                      lastTouchTime = millis();
+                      break; 
+                    }
+                  }
+                }
+            }
         }
       }
-    }
   }
+}
 }

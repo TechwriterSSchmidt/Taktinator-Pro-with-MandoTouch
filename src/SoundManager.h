@@ -29,6 +29,8 @@ public:
     bool selectSound(SoundType type, String sdFilename);
     void playDownbeat();
     void playBeat();
+    void setVolume(uint8_t vol);
+    bool areSoundsLoaded() { return downbeat.data != nullptr && beat.data != nullptr; }
     
     // Called by timer interrupt
     void handleInterrupt();
@@ -38,6 +40,7 @@ private:
     AudioBuffer downbeat;
     AudioBuffer beat;
     
+    uint8_t volume = 255; // 0-255
     AudioBuffer* currentBuffer = nullptr;
     volatile size_t playIndex = 0;
     volatile bool playing = false;
