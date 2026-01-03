@@ -30,8 +30,12 @@ def draw_rounded_rect(draw, xy, radius, fill=None, outline=None, width=1):
     x, y, w, h = xy
     draw.rounded_rectangle([x, y, x+w, y+h], radius=radius, fill=fill, outline=outline, width=width)
 
-def draw_button(draw, x, y, w, h, label, color, text_color=TFT_WHITE):
-    draw_rounded_rect(draw, (x, y, w, h), 5, fill=color, outline=TFT_WHITE)
+def draw_button(draw, x, y, w, h, label, color, text_color=TFT_WHITE, filled=True):
+    if filled:
+        draw_rounded_rect(draw, (x, y, w, h), 5, fill=color, outline=TFT_WHITE)
+    else:
+        draw_rounded_rect(draw, (x, y, w, h), 5, fill=None, outline=color, width=2)
+        
     # Simple text centering
     font = ImageFont.load_default()
     # Scale font for "large" look (simulated)
@@ -66,13 +70,13 @@ def generate_main_screen():
     font_large = ImageFont.load_default() # Should be larger
     draw.text((160, 25), "120", fill=TFT_CYAN, anchor="mm", font_size=30) # Simulated large font
     
-    # Buttons
-    draw_button(draw, 5, 5, 70, 40, "4/4", TFT_PURPLE)
+    # Buttons (Filled)
+    draw_button(draw, 5, 5, 70, 40, "4/4", TFT_PURPLE, filled=True)
     
-    draw_button(draw, 5, 55, 70, 60, "-10", TFT_BLUE)
-    draw_button(draw, 80, 55, 70, 60, "-1", TFT_NAVY)
-    draw_button(draw, 170, 55, 70, 60, "+1", TFT_NAVY)
-    draw_button(draw, 245, 55, 70, 60, "+10", TFT_BLUE)
+    draw_button(draw, 5, 55, 70, 60, "-10", TFT_BLUE, filled=True)
+    draw_button(draw, 80, 55, 70, 60, "-1", TFT_NAVY, filled=True)
+    draw_button(draw, 170, 55, 70, 60, "+1", TFT_NAVY, filled=True)
+    draw_button(draw, 245, 55, 70, 60, "+10", TFT_BLUE, filled=True)
     
     # Start Button (Custom)
     x, y, w, h = 5, 125, 145, 60
@@ -80,11 +84,11 @@ def generate_main_screen():
     draw_mandolin(draw, x + 20, y, 50, h, TFT_ORANGE)
     draw.text((x + w/2 + 37, y + h/2), "START", fill=TFT_WHITE, anchor="mm")
     
-    draw_button(draw, 170, 125, 70, 60, "PROG", TFT_NAVY)
-    draw_button(draw, 245, 125, 70, 60, "SND", TFT_MAROON)
+    draw_button(draw, 170, 125, 70, 60, "PROG", TFT_NAVY, filled=True)
+    draw_button(draw, 245, 125, 70, 60, "SND", TFT_MAROON, filled=True)
     
-    draw_button(draw, 5, 195, 60, 40, "-", TFT_DARKGREY)
-    draw_button(draw, 255, 195, 60, 40, "+", TFT_DARKGREY)
+    draw_button(draw, 5, 195, 60, 40, "-", TFT_DARKGREY, filled=True)
+    draw_button(draw, 255, 195, 60, 40, "+", TFT_DARKGREY, filled=True)
     
     # Volume Bar
     draw.rectangle([75, 205, 75+170, 205+20], outline=TFT_WHITE)
@@ -114,12 +118,12 @@ def generate_sound_select():
         y += 28
         
     # Scroll
-    draw_button(draw, 260, 40, 50, 65, "/\\", TFT_DARKGREY)
-    draw_button(draw, 260, 115, 50, 65, "\\/", TFT_DARKGREY)
+    draw_button(draw, 260, 40, 50, 65, "/\\", TFT_DARKGREY, filled=False)
+    draw_button(draw, 260, 115, 50, 65, "\\/", TFT_DARKGREY, filled=False)
     
-    # Controls
-    draw_button(draw, 10, 190, 100, 35, "BACK", TFT_BLUE)
-    draw_button(draw, 210, 190, 100, 35, "SELECT", TFT_GREEN)
+    # Controls (Outlined)
+    draw_button(draw, 10, 190, 100, 35, "BACK", TFT_BLUE, filled=False)
+    draw_button(draw, 210, 190, 100, 35, "SELECT", TFT_GREEN, filled=False)
     
     return img
 
@@ -139,16 +143,16 @@ def generate_program_select():
         y += 28
         
     # Scroll
-    draw_button(draw, 260, 30, 50, 65, "/\\", TFT_DARKGREY)
-    draw_button(draw, 260, 105, 50, 65, "\\/", TFT_DARKGREY)
+    draw_button(draw, 260, 30, 50, 65, "/\\", TFT_DARKGREY, filled=False)
+    draw_button(draw, 260, 105, 50, 65, "\\/", TFT_DARKGREY, filled=False)
     
-    # Controls
+    # Controls (Outlined)
     y_base = 185
-    draw_button(draw, 10, y_base, 60, 35, "BACK", TFT_BLUE)
-    draw_button(draw, 80, y_base, 60, 35, "NEW", TFT_GREEN)
-    draw_button(draw, 150, y_base, 60, 35, "EDIT", TFT_NAVY)
-    draw_button(draw, 220, y_base, 60, 35, "PLAY", TFT_DARKGREEN)
-    draw_button(draw, 290, y_base, 25, 35, "X", TFT_RED)
+    draw_button(draw, 10, y_base, 60, 35, "BACK", TFT_BLUE, filled=False)
+    draw_button(draw, 80, y_base, 60, 35, "NEW", TFT_GREEN, filled=False)
+    draw_button(draw, 150, y_base, 60, 35, "EDIT", TFT_NAVY, filled=False)
+    draw_button(draw, 220, y_base, 60, 35, "PLAY", TFT_DARKGREEN, filled=False)
+    draw_button(draw, 290, y_base, 25, 35, "X", TFT_RED, filled=False)
     
     return img
 
@@ -177,26 +181,36 @@ def generate_editor():
         draw.text((20, y), text, fill=TFT_WHITE)
         y += 32
         
-    # Controls
+    # Controls (Outlined)
     y_base = 200
-    draw_button(draw, 10, y_base, 50, 35, "ADD", TFT_GREEN)
-    draw_button(draw, 65, y_base, 50, 35, "DEL", TFT_RED)
-    draw_button(draw, 120, y_base, 50, 35, "RET", TFT_BLUE)
-    draw_button(draw, 175, y_base, 60, 35, "LOOP", TFT_CYAN)
-    draw_button(draw, 240, y_base, 70, 35, "SAVE", TFT_ORANGE)
+    draw_button(draw, 10, y_base, 50, 35, "ADD", TFT_GREEN, filled=False)
+    draw_button(draw, 65, y_base, 50, 35, "DEL", TFT_RED, filled=False)
+    draw_button(draw, 120, y_base, 50, 35, "RET", TFT_BLUE, filled=False)
+    draw_button(draw, 175, y_base, 60, 35, "LOOP", TFT_CYAN, filled=False)
+    draw_button(draw, 240, y_base, 70, 35, "SAVE", TFT_ORANGE, filled=False)
     
     # Edit Controls (Right side)
     x_base = 220
     y_start = 40
     
+    # Bars
     draw.text((x_base + 40, y_start), "Bars", fill=TFT_WHITE)
     draw_rounded_rect(draw, (x_base, y_start+10, 30, 30), 3, outline=TFT_WHITE)
     draw.text((x_base+15, y_start+25), "-", fill=TFT_WHITE, anchor="mm")
     draw_rounded_rect(draw, (x_base+50, y_start+10, 30, 30), 3, outline=TFT_WHITE)
     draw.text((x_base+65, y_start+25), "+", fill=TFT_WHITE, anchor="mm")
     
+    # Sig
     y_start += 50
     draw.text((x_base + 40, y_start), "Sig", fill=TFT_WHITE)
+    draw_rounded_rect(draw, (x_base, y_start+10, 30, 30), 3, outline=TFT_WHITE)
+    draw.text((x_base+15, y_start+25), "-", fill=TFT_WHITE, anchor="mm")
+    draw_rounded_rect(draw, (x_base+50, y_start+10, 30, 30), 3, outline=TFT_WHITE)
+    draw.text((x_base+65, y_start+25), "+", fill=TFT_WHITE, anchor="mm")
+    
+    # BPM (Added)
+    y_start += 50
+    draw.text((x_base + 40, y_start), "BPM", fill=TFT_WHITE)
     draw_rounded_rect(draw, (x_base, y_start+10, 30, 30), 3, outline=TFT_WHITE)
     draw.text((x_base+15, y_start+25), "-", fill=TFT_WHITE, anchor="mm")
     draw_rounded_rect(draw, (x_base+50, y_start+10, 30, 30), 3, outline=TFT_WHITE)
