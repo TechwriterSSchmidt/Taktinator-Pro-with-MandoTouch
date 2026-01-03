@@ -32,3 +32,4 @@ This project solves the common CYD issue of conflicting SPI buses for Touch and 
 ## Credits & Resources
 - **Metronome Sounds:** Special thanks to **Alejandro Hernandez** for the high-quality metronome samples.
   - Download them here: [Reaper Tips - Metronome Sounds](https://www.reapertips.com/resources/metronome-sounds)
+  - If you enjoy these sounds, please consider supporting his project!
