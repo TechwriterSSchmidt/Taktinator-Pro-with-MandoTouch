@@ -121,8 +121,8 @@ Button buttons[] = {
   
   // Action Row (Row 2)
   {5, 125, 145, 60, "START", TFT_DARKGREEN, toggleMetronome, false}, // Index 5 (Play/Stop)
-  {160, 125, 70, 60, "PROG", TFT_NAVY, toggleProgramSelect, false},
-  {240, 125, 70, 60, "SND", TFT_MAROON, toggleSoundSelect, false},
+  {170, 125, 70, 60, "PROG", TFT_NAVY, toggleProgramSelect, false},
+  {245, 125, 70, 60, "SND", TFT_MAROON, toggleSoundSelect, false},
 
   // Volume Controls (Bottom Row)
   {5, 195, 60, 40, "-", TFT_DARKGREY, decreaseVol, false},
