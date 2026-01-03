@@ -132,8 +132,13 @@ std::vector<String> SoundManager::listWavs() {
                     // Remove leading slash if present
                     if (displayName.startsWith("/")) displayName = displayName.substring(1);
                     
-                    files.push_back(displayName);
-                    Serial.print("  -> Added Set: "); Serial.println(displayName);
+                    // Check if valid format
+                    if (isValidWav(name)) {
+                        files.push_back(displayName);
+                        Serial.print("  -> Added Set: "); Serial.println(displayName);
+                    } else {
+                        Serial.print("  -> Skipped Invalid: "); Serial.println(name);
+                    }
                 }
             }
         }
@@ -141,6 +146,48 @@ std::vector<String> SoundManager::listWavs() {
     }
     Serial.println("--- End List ---");
     return files;
+}
+
+bool SoundManager::isValidWav(String path) {
+    if (!path.startsWith("/")) path = "/" + path;
+    File file = LittleFS.open(path, "r");
+    if (!file) return false;
+
+    if (file.size() < 44) { file.close(); return false; }
+
+    char header[44];
+    file.read((uint8_t*)header, 44);
+    file.close();
+
+    // Check RIFF
+    if (memcmp(header, "RIFF", 4) != 0) return false;
+    // Check WAVE
+    if (memcmp(header + 8, "WAVE", 4) != 0) return false;
+    
+    // Parse fmt
+    // Note: This assumes standard 44 byte header. 
+    // If fmt chunk is moved or extra chunks exist, this simple check might fail valid files.
+    // But for our standard converted files, it's fine.
+    // Let's be slightly more robust by checking fmt signature if possible, 
+    // but for speed we'll check the standard offsets first.
+    
+    // AudioFormat (Offset 20, 2 bytes) -> Must be 1 (PCM)
+    uint16_t fmtCode = (uint16_t)(header[20] | (header[21] << 8));
+    if (fmtCode != 1) return false;
+
+    // Channels (Offset 22, 2 bytes) -> Must be 1 or 2
+    uint16_t channels = (uint16_t)(header[22] | (header[23] << 8));
+    if (channels > 2) return false; 
+
+    // Sample Rate (Offset 24, 4 bytes) -> Max 48000
+    uint32_t sampleRate = (uint32_t)(header[24] | (header[25] << 8) | (header[26] << 16) | (header[27] << 24));
+    if (sampleRate > 48000) return false;
+
+    // BitsPerSample (Offset 34, 2 bytes) -> Max 16
+    uint16_t bits = (uint16_t)(header[34] | (header[35] << 8));
+    if (bits > 16) return false;
+
+    return true;
 }
 
 bool SoundManager::selectSound(SoundType type, String filename) {

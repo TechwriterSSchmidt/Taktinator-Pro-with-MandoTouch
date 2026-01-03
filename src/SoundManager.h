@@ -60,6 +60,7 @@ private:
     volatile bool playing = false;
     
     bool loadWavToBuffer(String path, AudioBuffer& buffer);
+    bool isValidWav(String path);
     
     #ifdef USE_I2S_AUDIO
     void playI2S(AudioBuffer* buffer);
