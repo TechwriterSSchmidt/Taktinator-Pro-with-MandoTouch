@@ -1,6 +1,12 @@
 # Taktinator Pro with MandoTouch
 
-A digital metronome designed for the **ESP32-Cheap-Yellow-Display (CYD)**, featuring a custom Mandolin-themed UI.
+A versatile metronome for my favourite mandolin player, based on the **ESP32-Cheap-Yellow-Display (CYD)**, featuring a custom Mandolin-themed UI.
+
+## Support my projects
+
+If you like this project, consider a tip. Your tip motivates me to continue developing useful stuff for the DIY community. Thank you very much for your support!
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/D1D01HVT9A)
 
 ## Features
 - **BPM Range:** 40 - 208 BPM (Standard Metronome Range).
