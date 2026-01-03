@@ -538,13 +538,13 @@ void updateBPM() {
 
   tft.setTextSize(4); // Large Font
 
-  tft.drawNumber(bpm, 220, 25);
+  tft.drawNumber(bpm, 215, 25);
 
   
 
   tft.setTextSize(1);
 
-  tft.drawString("BPM", 260, 35, 2); 
+  tft.drawString("BPM", 264, 35, 2); 
 
   
 
