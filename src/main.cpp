@@ -284,7 +284,15 @@ void drawEditor() {
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.setTextDatum(TL_DATUM); // Left aligned
   tft.setTextSize(2);
-  tft.drawString("Rhythm Program", 10, 5); 
+  
+  String title = "New Program";
+  if (currentProgramPath.length() > 0) {
+      title = currentProgramPath;
+      int lastSlash = title.lastIndexOf('/');
+      if (lastSlash >= 0) title = title.substring(lastSlash + 1);
+      if (title.endsWith(".txt")) title = title.substring(0, title.length() - 4);
+  }
+  tft.drawString(title, 10, 5); 
 
   // Scroll Buttons
   if (sequence.size() > 5) {
@@ -369,7 +377,11 @@ void drawEditor() {
   tft.drawString(isLoopMode ? "LOOP" : "ONCE", 205, yBase + 17);
 
   // SAVE (x=240, w=70) - Replaces RUN
-  tft.drawRoundRect(240, yBase, 70, 35, 5, TFT_ORANGE); tft.drawString("SAVE", 275, yBase + 17);
+  if (isSequenceMode) {
+      tft.drawRoundRect(240, yBase, 70, 35, 5, TFT_RED); tft.drawString("STOP", 275, yBase + 17);
+  } else {
+      tft.drawRoundRect(240, yBase, 70, 35, 5, TFT_ORANGE); tft.drawString("SAVE", 275, yBase + 17);
+  }
 
   if (selectedStepIndex >= 0 && selectedStepIndex < sequence.size()) {
      int xBase = 220;
@@ -399,7 +411,7 @@ void drawSoundSelect() {
     
     // Tabs
     int tabW = 145;
-    int tabH = 35;
+    int tabH = 30;
     
     // Tab 1: Downbeat
     uint16_t c1 = (targetSoundType == SOUND_DOWNBEAT) ? TFT_GREEN : TFT_DARKGREY;
@@ -416,11 +428,11 @@ void drawSoundSelect() {
     tft.drawString("Upbeat", 165 + tabW/2, 5 + tabH/2);
 
     // File List
-    tft.drawRect(10, 50, 240, 150, TFT_WHITE); 
+    tft.drawRect(10, 40, 240, 140, TFT_WHITE); 
     tft.setTextSize(2);
     tft.setTextDatum(TL_DATUM);
     
-    int y = 55; 
+    int y = 45; 
     for (int i = soundListScroll; i < wavFiles.size() && i < soundListScroll + 5; i++) {
         if (i == selectedSoundIndex) tft.setTextColor(TFT_YELLOW, TFT_BLACK);
         else tft.setTextColor(TFT_WHITE, TFT_BLACK);
@@ -435,14 +447,14 @@ void drawSoundSelect() {
 
     // Scroll Buttons
     tft.setTextDatum(MC_DATUM);
-    tft.drawRoundRect(260, 50, 50, 70, 5, TFT_DARKGREY);
-    tft.drawString("/\\", 285, 85); // Up
+    tft.drawRoundRect(260, 40, 50, 65, 5, TFT_DARKGREY);
+    tft.drawString("/\\", 285, 72); // Up
     
-    tft.drawRoundRect(260, 130, 50, 70, 5, TFT_DARKGREY);
-    tft.drawString("\\/", 285, 165); // Down
+    tft.drawRoundRect(260, 115, 50, 65, 5, TFT_DARKGREY);
+    tft.drawString("\\/", 285, 147); // Down
     
     // Controls
-    int yBase = 210; 
+    int yBase = 190; 
     tft.setTextDatum(MC_DATUM);
     tft.drawRoundRect(10, yBase, 100, 35, 5, TFT_BLUE); tft.drawString("BACK", 60, yBase + 17);
     tft.drawRoundRect(210, yBase, 100, 35, 5, TFT_GREEN); tft.drawString("SELECT", 260, yBase + 17);
@@ -458,7 +470,7 @@ void refreshSoundList() {
 
 void handleTouchSoundSelect(int x, int y) {
     // Tabs
-    if (y < 45) {
+    if (y < 40) {
         if (x > 10 && x < 155) {
             targetSoundType = SOUND_DOWNBEAT;
             drawSoundSelect();
@@ -470,7 +482,7 @@ void handleTouchSoundSelect(int x, int y) {
     }
 
     // Scroll Up
-    if (x > 260 && y > 50 && y < 120) {
+    if (x > 260 && y > 40 && y < 105) {
         if (soundListScroll > 0) {
             soundListScroll--;
             drawSoundSelect();
@@ -479,7 +491,7 @@ void handleTouchSoundSelect(int x, int y) {
     }
 
     // Scroll Down
-    if (x > 260 && y > 130 && y < 200) {
+    if (x > 260 && y > 115 && y < 180) {
         if (soundListScroll + 5 < wavFiles.size()) {
             soundListScroll++;
             drawSoundSelect();
@@ -488,8 +500,8 @@ void handleTouchSoundSelect(int x, int y) {
     }
     
     // List Selection
-    if (x < 250 && y > 50 && y < 200) { 
-        int idx = (y - 55) / 28 + soundListScroll;
+    if (x < 250 && y > 40 && y < 180) { 
+        int idx = (y - 45) / 28 + soundListScroll;
         if (idx >= 0 && idx < wavFiles.size()) {
             selectedSoundIndex = idx;
             drawSoundSelect();
@@ -497,7 +509,7 @@ void handleTouchSoundSelect(int x, int y) {
         return;
     }
     
-    int yBase = 210;
+    int yBase = 190;
     // BACK
     if (y > yBase && x < 110) {
         toggleSoundSelect();
@@ -572,8 +584,19 @@ void handleTouchEditor(int x, int y) {
     isLoopMode = !isLoopMode;
     drawEditor();
   }
-  // SAVE
+  // SAVE / STOP
   if (y > yBase && y < yBase + 35 && x > 240 && x < 310) {
+    if (isSequenceMode) {
+        // STOP
+        isSequenceMode = false;
+        isPlaying = false;
+        currentStepIndex = 0;
+        barsPlayedInStep = 0;
+        currentBeat = 0;
+        drawEditor();
+        return;
+    }
+
     if (sequence.empty()) return;
     
     String savePath = currentProgramPath;
@@ -585,6 +608,7 @@ void handleTouchEditor(int x, int y) {
     tft.setTextColor(TFT_WHITE, TFT_BLACK);
     tft.setTextDatum(MC_DATUM);
     tft.drawString("Saving...", 160, 120);
+    tft.drawString(savePath, 160, 150); // Show path being saved
     
     if (programManager.saveProgram(savePath, sequence)) {
         delay(500);
@@ -751,11 +775,11 @@ void drawProgramSelect() {
     tft.drawString("Select Program", 10, 5);
 
     // File List
-    tft.drawRect(10, 35, 240, 150, TFT_WHITE); 
+    tft.drawRect(10, 30, 240, 140, TFT_WHITE); 
     tft.setTextSize(2);
     tft.setTextDatum(TL_DATUM);
     
-    int y = 40; 
+    int y = 35; 
     for (int i = programListScroll; i < programFiles.size() && i < programListScroll + 5; i++) {
         if (i == selectedProgramIndex) tft.setTextColor(TFT_YELLOW, TFT_BLACK);
         else tft.setTextColor(TFT_WHITE, TFT_BLACK);
@@ -775,14 +799,14 @@ void drawProgramSelect() {
 
     // Scroll Buttons
     tft.setTextDatum(MC_DATUM);
-    tft.drawRoundRect(260, 35, 50, 70, 5, TFT_DARKGREY);
-    tft.drawString("/\\", 285, 70); // Up
+    tft.drawRoundRect(260, 30, 50, 65, 5, TFT_DARKGREY);
+    tft.drawString("/\\", 285, 62); // Up
     
-    tft.drawRoundRect(260, 115, 50, 70, 5, TFT_DARKGREY);
-    tft.drawString("\\/", 285, 150); // Down
+    tft.drawRoundRect(260, 105, 50, 65, 5, TFT_DARKGREY);
+    tft.drawString("\\/", 285, 137); // Down
     
     // Controls
-    int yBase = 200; 
+    int yBase = 185; 
     tft.setTextDatum(MC_DATUM);
     tft.setTextSize(2);
     
@@ -815,7 +839,7 @@ void refreshProgramList() {
 
 void handleTouchProgramSelect(int x, int y) {
     // Scroll Up
-    if (x > 260 && y > 35 && y < 105) {
+    if (x > 260 && y > 30 && y < 95) {
         if (programListScroll > 0) {
             programListScroll--;
             drawProgramSelect();
@@ -824,7 +848,7 @@ void handleTouchProgramSelect(int x, int y) {
     }
 
     // Scroll Down
-    if (x > 260 && y > 115 && y < 185) {
+    if (x > 260 && y > 105 && y < 170) {
         if (programListScroll + 5 < programFiles.size()) {
             programListScroll++;
             drawProgramSelect();
@@ -833,8 +857,8 @@ void handleTouchProgramSelect(int x, int y) {
     }
     
     // List Selection
-    if (x < 250 && y > 35 && y < 185) { 
-        int idx = (y - 40) / 28 + programListScroll;
+    if (x < 250 && y > 30 && y < 170) { 
+        int idx = (y - 35) / 28 + programListScroll;
         if (idx >= 0 && idx < programFiles.size()) {
             selectedProgramIndex = idx;
             drawProgramSelect();
@@ -842,8 +866,8 @@ void handleTouchProgramSelect(int x, int y) {
         return;
     }
     
-    int yBase = 200;
-    if (y > yBase && y < yBase + 35) {
+    int yBase = 185;
+    if (y > yBase - 10 && y < yBase + 50) {
         // BACK
         if (x > 10 && x < 70) {
             toggleProgramSelect();
@@ -853,7 +877,7 @@ void handleTouchProgramSelect(int x, int y) {
         if (x > 80 && x < 140) {
             sequence.clear();
             sequence.push_back({4, 4, 120});
-            currentProgramPath = ""; // New file
+            currentProgramPath = programManager.getNextProgramName(); // Pre-assign name
             currentScreen = SCREEN_EDITOR;
             selectedStepIndex = 0;
             drawEditor();
@@ -894,7 +918,11 @@ void handleTouchProgramSelect(int x, int y) {
                             currentBeat = 0;
                             beatsPerBar = sequence[0].beatsPerBar;
                             bpm = sequence[0].bpm;
-                            drawProgramSelect();
+                            
+                            // Switch to Editor View for Playback
+                            currentScreen = SCREEN_EDITOR;
+                            selectedStepIndex = -1; // Deselect specific step so we just see the playback highlight
+                            drawEditor();
                         }
                     }
                 }

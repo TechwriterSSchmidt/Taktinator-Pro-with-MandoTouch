@@ -36,6 +36,9 @@ public:
         while (file) {
             String fileName = file.name();
             if (fileName.endsWith(".txt")) {
+                if (!fileName.startsWith("/")) {
+                    fileName = "/programs/" + fileName;
+                }
                 programs.push_back(fileName);
             }
             file = root.openNextFile();
