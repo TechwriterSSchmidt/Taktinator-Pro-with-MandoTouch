@@ -25,10 +25,10 @@ XPT2046_Bitbang ts(XPT2046_MOSI, XPT2046_MISO, XPT2046_CLK, XPT2046_CS);
 #define SLIDER_H 15
 #define SLIDER_KNOB_R 8
 
-#define VOL_BAR_X 60
-#define VOL_BAR_Y 210
-#define VOL_BAR_W 200
-#define VOL_BAR_H 10
+#define VOL_BAR_X 70
+#define VOL_BAR_Y 205
+#define VOL_BAR_W 180
+#define VOL_BAR_H 15
 
 // --- State Variables ---
 int bpm = 120;
@@ -95,23 +95,23 @@ struct Button {
 
 // --- Button Layout ---
 Button buttons[] = {
-  // BPM Controls (Row 1)
-  {10, 80, 65, 35, "-10", TFT_BLUE, decreaseBPM10, false},
-  {85, 80, 65, 35, "-1", TFT_NAVY, decreaseBPM1, false},
-  {160, 80, 65, 35, "+1", TFT_NAVY, increaseBPM1, false},
-  {235, 80, 65, 35, "+10", TFT_BLUE, increaseBPM10, false},
+  // BPM Controls (Row 1) - Taller for fingers
+  {10, 75, 65, 40, "-10", TFT_BLUE, decreaseBPM10, false},
+  {85, 75, 65, 40, "-1", TFT_NAVY, decreaseBPM1, false},
+  {160, 75, 65, 40, "+1", TFT_NAVY, increaseBPM1, false},
+  {235, 75, 65, 40, "+10", TFT_BLUE, increaseBPM10, false},
   
-  // Row 2: Time Sig & Mandolin
-  {10, 125, 70, 60, "4/4", TFT_PURPLE, cycleTimeSig, false}, // Time Sig Button
-  {90, 125, 150, 60, "", TFT_DARKGREEN, toggleMetronome, true}, // Mandolin Button (No Text)
+  // Row 2: Time Sig & Mandolin - Taller
+  {10, 120, 70, 70, "4/4", TFT_PURPLE, cycleTimeSig, false}, // Time Sig Button
+  {90, 120, 150, 70, "", TFT_DARKGREEN, toggleMetronome, true}, // Mandolin Button (No Text)
   
-  // Split PROG button area
-  {250, 125, 60, 28, "PROG", TFT_NAVY, toggleEditor, false}, // PROG Button
-  {250, 157, 60, 28, "SND", TFT_MAROON, toggleSoundSelect, false}, // SOUND Button
+  // Split PROG button area - Taller
+  {250, 120, 60, 32, "PROG", TFT_NAVY, toggleEditor, false}, // PROG Button
+  {250, 158, 60, 32, "SND", TFT_MAROON, toggleSoundSelect, false}, // SOUND Button
 
-  // Volume Controls (Bottom Row)
-  {10, 200, 40, 35, "-", TFT_DARKGREY, decreaseVol, false},
-  {270, 200, 40, 35, "+", TFT_DARKGREY, increaseVol, false}
+  // Volume Controls (Bottom Row) - Bigger
+  {10, 195, 50, 40, "-", TFT_DARKGREY, decreaseVol, false},
+  {260, 195, 50, 40, "+", TFT_DARKGREY, increaseVol, false}
 };
 
 const int numButtons = sizeof(buttons) / sizeof(Button);
@@ -122,18 +122,21 @@ void drawMandolin(int x, int y, int w, int h, uint16_t bodyColor) {
   int cx = x + w / 2;
   int cy = y + h / 2;
   
-  // Body
-  tft.fillEllipse(cx, cy + 5, 25, 20, bodyColor);
-  tft.drawEllipse(cx, cy + 5, 25, 20, TFT_WHITE);
-  tft.fillCircle(cx, cy + 5, 6, TFT_BLACK); // Sound hole
+  // Body (Rotated 90 deg left -> Neck points left, Body on right)
+  int bodyX = cx + 15;
+  tft.fillEllipse(bodyX, cy, 20, 15, bodyColor); // Slimmer body
+  tft.drawEllipse(bodyX, cy, 20, 15, TFT_WHITE);
+  tft.fillCircle(bodyX - 5, cy, 5, TFT_BLACK); // Sound hole
   
-  // Neck
-  tft.fillRect(cx - 3, y + 8, 6, 35, TFT_BROWN);
-  tft.fillRect(cx - 6, y + 4, 12, 8, bodyColor); // Headstock
+  // Neck (Pointing Left)
+  tft.fillRect(x + 10, cy - 3, 45, 6, TFT_BROWN); 
+  
+  // Headstock (Far Left)
+  tft.fillRect(x + 2, cy - 6, 10, 12, bodyColor); 
   
   // Strings
-  tft.drawLine(cx - 2, y + 4, cx - 2, cy + 15, TFT_SILVER);
-  tft.drawLine(cx + 2, y + 4, cx + 2, cy + 15, TFT_SILVER);
+  tft.drawLine(x + 5, cy - 1, bodyX, cy - 1, TFT_SILVER);
+  tft.drawLine(x + 5, cy + 1, bodyX, cy + 1, TFT_SILVER);
 }
 
 void drawButton(int index) {
@@ -304,7 +307,11 @@ void drawSoundSelect() {
         if (i == selectedSoundIndex) tft.setTextColor(TFT_YELLOW, TFT_BLACK);
         else tft.setTextColor(TFT_WHITE, TFT_BLACK);
         
-        tft.drawString(wavFiles[i], 20, y);
+        String dispName = wavFiles[i];
+        if (dispName.length() > 18) {
+            dispName = dispName.substring(0, 15) + "...";
+        }
+        tft.drawString(dispName, 20, y);
         y += 32; // Reduced spacing
     }
 

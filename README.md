@@ -28,3 +28,7 @@ This project solves the common CYD issue of conflicting SPI buses for Touch and 
 1. Open in VS Code with PlatformIO.
 2. Build and Upload to your ESP32 CYD.
 3. Tap the Mandolin to start the beat!
+
+## Credits & Resources
+- **Metronome Sounds:** Special thanks to **Alejandro Hernandez** for the high-quality metronome samples.
+  - Download them here: [Reaper Tips - Metronome Sounds](https://www.reapertips.com/resources/metronome-sounds)
