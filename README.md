@@ -19,6 +19,14 @@ If you like this project, consider a tip. Your tip motivates me to continue deve
   - **Status Indication:** Button changes color (Green = Ready, Red = Playing) and animates on touch.
 - **Audio:** Generates a crisp 1kHz click sound (50ms duration) on each beat.
 
+## User Interface
+
+| Main Screen | Sound Select |
+|:---:|:---:|
+| ![Main Screen](images/ui_main.png) | ![Sound Select](images/ui_sound.png) |
+| **Program Select** | **Program Editor** |
+| ![Program Select](images/ui_program.png) | ![Editor](images/ui_editor.png) |
+
 ## Hardware
 - **Board:** ESP32-2432S028R (Cheap Yellow Display)
 - **Audio:** I2S (MAX98357A) or Internal DAC (GPIO 26)
