@@ -15,6 +15,16 @@ void IRAM_ATTR onTimer() {
 
 SoundManager::SoundManager() {}
 
+#ifdef USE_I2S_AUDIO
+// Task to feed I2S
+void i2sTask(void* param) {
+    SoundManager* sm = (SoundManager*)param;
+    while(1) {
+        vTaskDelay(pdMS_TO_TICKS(1000)); // Keep alive
+    }
+}
+#endif
+
 bool SoundManager::begin() {
     if(!LittleFS.begin(true)){
         Serial.println("LittleFS Mount Failed");
@@ -22,19 +32,60 @@ bool SoundManager::begin() {
     }
     
     prefs.begin("metronome", false);
+
+    #ifdef USE_I2S_AUDIO
+    Serial.println("Initializing I2S...");
+    i2s_config_t i2s_config = {
+        .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
+        .sample_rate = 44100,
+        .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
+        .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT, // Mono
+        .communication_format = I2S_COMM_FORMAT_I2S, // Standard I2S
+        .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
+        .dma_buf_count = 8,
+        .dma_buf_len = 64,
+        .use_apll = false,
+        .tx_desc_auto_clear = true // Auto clear to avoid noise
+    };
+    
+    i2s_pin_config_t pin_config = {
+        .bck_io_num = I2S_BCLK,
+        .ws_io_num = I2S_LRCK,
+        .data_out_num = I2S_DOUT,
+        .data_in_num = I2S_PIN_NO_CHANGE
+    };
+    
+    i2s_driver_install(I2S_NUM, &i2s_config, 0, NULL);
+    i2s_set_pin(I2S_NUM, &pin_config);
+    i2s_zero_dma_buffer(I2S_NUM);
+    #endif
     
     // Load saved sounds from LittleFS to RAM
-    Serial.println("Loading /downbeat.wav...");
-    bool dbLoaded = loadWavToBuffer("/downbeat.wav", downbeat);
+    // Default to Standard if not set
+    String dbPath = prefs.getString("dbPath", "/Standard_Downbeat.wav");
+    String bPath = prefs.getString("bPath", "/Standard_Beat.wav");
+
+    Serial.print("Loading "); Serial.println(dbPath);
+    bool dbLoaded = loadWavToBuffer(dbPath, downbeat);
     
     if (!dbLoaded) {
-        Serial.println("Failed to load downbeat.wav. Skipping beat.wav to avoid delays.");
-    } else {
-        Serial.println("Loading /beat.wav...");
-        bool bLoaded = loadWavToBuffer("/beat.wav", beat);
-        if (!bLoaded) Serial.println("Failed to load beat.wav");
+        Serial.println("Failed to load downbeat. Trying fallback...");
+        if (loadWavToBuffer("/Standard_Downbeat.wav", downbeat)) {
+             dbPath = "/Standard_Downbeat.wav";
+             prefs.putString("dbPath", dbPath);
+        }
+    }
+
+    Serial.print("Loading "); Serial.println(bPath);
+    bool bLoaded = loadWavToBuffer(bPath, beat);
+    if (!bLoaded) {
+         if (loadWavToBuffer("/Standard_Beat.wav", beat)) {
+             bPath = "/Standard_Beat.wav";
+             prefs.putString("bPath", bPath);
+         }
     }
     
+    #ifndef USE_I2S_AUDIO
     // Setup Timer for DAC
     // Use Timer 0, divider 80 (1MHz)
     timer = timerBegin(0, 80, true);
@@ -45,161 +96,78 @@ bool SoundManager::begin() {
 
     // Default alarm (will be updated on play)
     timerAlarmWrite(timer, 1000, true); 
-    // timerAlarmEnable(timer); // Don't enable yet, wait for play
+    #endif
     
     return true;
 }
 
-std::vector<String> SoundManager::listWavsOnSD() {
+std::vector<String> SoundManager::listWavs() {
     std::vector<String> files;
     
-    Serial.println("--- Listing SD Files ---");
+    Serial.println("--- Listing LittleFS Files ---");
     
-    // Ensure Touch CS is HIGH (Deselected)
-    pinMode(33, OUTPUT);
-    digitalWrite(33, HIGH);
-
-    // Initialize global SPI for SD
-    // SCK=18, MISO=19, MOSI=23, SS=5
-    SPI.begin(18, 19, 23, 5);
-    
-    // Try mounting
-    // Note: If card is >32GB, it might be exFAT which is not supported by standard SD lib.
-    // Must be FAT32.
-    if(!SD.begin(5, SPI, 4000000)){
-        Serial.println("SD Mount Failed (4MHz), trying 1MHz...");
-        if(!SD.begin(5, SPI, 1000000)){
-            Serial.println("SD Mount Failed! Check card format (FAT32) and connections.");
-            Serial.println("Debug: Pins SCK=18, MISO=19, MOSI=23, CS=5");
-            
-            // Check if card is present at all (might not work if begin failed completely)
-            if (SD.cardType() == CARD_NONE) {
-                 Serial.println("Debug: No SD Card detected or Filesystem invalid.");
-                 Serial.println("HINT: Error 13 means the card is readable but the format is wrong.");
-                 Serial.println("HINT: Please format as FAT32 (not exFAT). Use 'SD Memory Card Formatter' if possible.");
-            } else {
-                 Serial.print("Debug: Card Type detected: ");
-                 Serial.println(SD.cardType());
-            }
-            return files;
-        }
-    }
-    
-    Serial.println("SD Mounted Successfully");
-    
-    // Print Card Stats
-    Serial.printf("Card Size: %llu MB\n", SD.cardSize() / (1024 * 1024));
-    Serial.printf("Total Bytes: %llu MB\n", SD.totalBytes() / (1024 * 1024));
-    Serial.printf("Used Bytes: %llu MB\n", SD.usedBytes() / (1024 * 1024));
-
-    File root = SD.open("/");
+    File root = LittleFS.open("/");
     if(!root){
         Serial.println("Failed to open root directory");
-        SD.end();
         return files;
     }
     
     if (!root.isDirectory()) {
         Serial.println("Error: Root is not a directory!");
-        SD.end();
         return files;
     }
 
-    Serial.println("Root opened. Iterating...");
-    // root.rewindDirectory(); // Removed to avoid potential issues
-
     File file = root.openNextFile();
-    if (!file) {
-        Serial.println("Warning: root.openNextFile() returned false immediately.");
-        Serial.println("Possible causes: Empty card, incompatible filesystem settings, or LFN issues.");
-    }
-
-    int count = 0;
     while(file){
         String name = String(file.name());
-        Serial.print("Entry found: "); Serial.println(name);
-        
         if(!file.isDirectory()){
-            // Case insensitive check
             String upperName = name;
             upperName.toUpperCase();
-            
             if(upperName.endsWith(".WAV")){
-                Serial.print("  -> Added to list: "); Serial.println(name);
-                files.push_back(name);
-            } else {
-                Serial.println("  -> Skipped (not .wav)");
+                // Only add if it's a Downbeat file to keep list clean
+                // We assume matching _Beat.wav exists
+                if (name.indexOf("_Downbeat") > 0) {
+                    // Strip "_Downbeat.wav" for display
+                    String displayName = name.substring(0, name.indexOf("_Downbeat"));
+                    // Remove leading slash if present
+                    if (displayName.startsWith("/")) displayName = displayName.substring(1);
+                    
+                    files.push_back(displayName);
+                    Serial.print("  -> Added Set: "); Serial.println(displayName);
+                }
             }
-        } else {
-             Serial.println("  -> Skipped (Directory)");
         }
         file = root.openNextFile();
-        count++;
     }
-    Serial.print("Total entries processed: "); Serial.println(count);
-    SD.end(); 
-    // SPI.end(); // Keep SPI active
     Serial.println("--- End List ---");
     return files;
 }
 
-bool SoundManager::selectSound(SoundType type, String sdFilename) {
-    Serial.print("Selecting sound: "); Serial.println(sdFilename);
+bool SoundManager::selectSound(SoundType type, String filename) {
+    // Filename is just the prefix (e.g. "Standard")
+    Serial.print("Selecting Sound for Type "); Serial.print(type); Serial.print(": "); Serial.println(filename);
     
-    // Ensure Touch CS is HIGH
-    pinMode(33, OUTPUT);
-    digitalWrite(33, HIGH);
+    bool success = false;
 
-    SPI.begin(18, 19, 23, 5);
-    
-    if(!SD.begin(5, SPI, 4000000)) {
-        Serial.println("SD Mount Failed during selection");
-        return false;
-    }
-    
-    String destPath = (type == SOUND_DOWNBEAT) ? "/downbeat.wav" : "/beat.wav";
-    
-    // Copy file
-    if (LittleFS.exists(destPath)) LittleFS.remove(destPath);
-    
-    File source = SD.open(sdFilename, "r"); // Removed leading slash requirement
-    if (!source) { 
-        // Try adding slash if missing
-        if (!sdFilename.startsWith("/")) source = SD.open("/" + sdFilename, "r");
-    }
-    
-    if (!source) { 
-        Serial.println("Failed to open source file on SD");
-        SD.end(); return false; 
-    }
-    
-    File dest = LittleFS.open(destPath, "w");
-    if (!dest) { 
-        Serial.println("Failed to open dest file on LittleFS");
-        source.close(); SD.end(); return false; 
-    }
-    
-    uint8_t buf[512];
-    while (source.available()) {
-        size_t len = source.read(buf, 512);
-        dest.write(buf, len);
-    }
-    
-    dest.close();
-    source.close();
-    SD.end();
-    // SPI.end();
-    
-    Serial.println("Copy successful, reloading buffer...");
-    
-    // Reload buffer
     if (type == SOUND_DOWNBEAT) {
-        loadWavToBuffer(destPath, downbeat);
+        String dbPath = "/" + filename + "_Downbeat.wav";
+        if (loadWavToBuffer(dbPath, downbeat)) {
+            prefs.putString("dbPath", dbPath);
+            success = true;
+        } else {
+            Serial.println("Failed to load Downbeat: " + dbPath);
+        }
     } else {
-        loadWavToBuffer(destPath, beat);
+        String bPath = "/" + filename + "_Beat.wav";
+        if (loadWavToBuffer(bPath, beat)) {
+            prefs.putString("bPath", bPath);
+            success = true;
+        } else {
+            Serial.println("Failed to load Beat: " + bPath);
+        }
     }
     
-    return true;
+    return success;
 }
 
 bool SoundManager::loadWavToBuffer(String path, AudioBuffer& buffer) {
@@ -241,7 +209,6 @@ bool SoundManager::loadWavToBuffer(String path, AudioBuffer& buffer) {
             // Safety Check: Reject High-Res files to prevent RAM overflow/Crash
             if (sampleRate > 48000 || bitsPerSample > 16) {
                 Serial.println("Error: File format too high for RAM! (Max 48kHz, 16-bit)");
-                Serial.println("-> Please select a smaller file from SD Card menu.");
                 file.close();
                 return false;
             }
@@ -256,11 +223,18 @@ bool SoundManager::loadWavToBuffer(String path, AudioBuffer& buffer) {
         } else if (memcmp(chunkID, "data", 4) == 0) {
             if (buffer.data) free(buffer.data);
             
-            // Calculate target size (convert to 8-bit)
-            // If 16-bit, size is half. If 8-bit, size is same.
+            #ifdef USE_I2S_AUDIO
+            // I2S Mode: Keep 16-bit signed
+            uint32_t targetSize = chunkSize;
+            // If 8-bit, size doubles. If 16-bit, same. If 24-bit, 2/3.
+            if (buffer.bitsPerSample == 8) targetSize = chunkSize * 2;
+            else if (buffer.bitsPerSample == 24) targetSize = (chunkSize / 3) * 2;
+            #else
+            // DAC Mode: Convert to 8-bit unsigned
             uint32_t targetSize = chunkSize;
             if (buffer.bitsPerSample == 16) targetSize = chunkSize / 2;
             else if (buffer.bitsPerSample == 24) targetSize = chunkSize / 3;
+            #endif
             
             // Limit size to available RAM (safety margin)
             size_t freeHeap = ESP.getFreeHeap();
@@ -292,7 +266,33 @@ bool SoundManager::loadWavToBuffer(String path, AudioBuffer& buffer) {
                     if (toRead > 512) toRead = 512;
                     file.read(tempBuf, toRead);
                     
-                    // Convert to 8-bit
+                    #ifdef USE_I2S_AUDIO
+                    // Convert to 16-bit signed
+                    for (size_t i = 0; i < toRead; ) {
+                        int16_t val = 0;
+                        if (buffer.bitsPerSample == 16) {
+                             // Already 16-bit signed
+                             val = (int16_t)(tempBuf[i] | (tempBuf[i+1] << 8));
+                             i += 2;
+                        } else if (buffer.bitsPerSample == 24) {
+                             // 24-bit signed -> 16-bit signed (drop LSB)
+                             val = (int16_t)(tempBuf[i+1] | (tempBuf[i+2] << 8));
+                             i += 3;
+                        } else {
+                             // 8-bit unsigned -> 16-bit signed
+                             // (val - 128) * 256
+                             val = ((int16_t)tempBuf[i] - 128) << 8;
+                             i += 1;
+                        }
+                        
+                        // Store as bytes (Little Endian)
+                        if (outIndex < buffer.size) {
+                            buffer.data[outIndex++] = val & 0xFF;
+                            buffer.data[outIndex++] = (val >> 8) & 0xFF;
+                        }
+                    }
+                    #else
+                    // Convert to 8-bit unsigned
                     for (size_t i = 0; i < toRead; ) {
                         uint8_t val = 128;
                         if (buffer.bitsPerSample == 16) {
@@ -311,6 +311,7 @@ bool SoundManager::loadWavToBuffer(String path, AudioBuffer& buffer) {
                         }
                         if (outIndex < buffer.size) buffer.data[outIndex++] = val;
                     }
+                    #endif
                     
                     bytesRead += toRead;
                     if (bytesRead % 10240 == 0) delay(1); // Yield
@@ -318,8 +319,11 @@ bool SoundManager::loadWavToBuffer(String path, AudioBuffer& buffer) {
                 
                 free(tempBuf);
                 
-                // Update buffer info to reflect 8-bit storage
+                #ifdef USE_I2S_AUDIO
+                buffer.bitsPerSample = 16;
+                #else
                 buffer.bitsPerSample = 8; 
+                #endif
                 
                 foundData = true;
                 Serial.print("Loaded & Converted bytes: "); Serial.println(targetSize);
@@ -336,7 +340,70 @@ bool SoundManager::loadWavToBuffer(String path, AudioBuffer& buffer) {
     return foundFmt && foundData;
 }
 
+#ifdef USE_I2S_AUDIO
+void SoundManager::playI2S(AudioBuffer* buffer) {
+    if (!buffer || !buffer->data) return;
+    
+    // Apply Volume (Software Scaling)
+    // We create a temporary buffer or scale in place?
+    // Scaling in place modifies the original sound, which is bad if we change volume.
+    // But we only have one copy in RAM.
+    // Better: Scale on the fly while writing to I2S?
+    // i2s_write takes a buffer.
+    // Let's allocate a small chunk, scale, and write.
+    
+    size_t bytesWritten;
+    size_t totalBytes = buffer->size;
+    size_t chunkBytes = 1024; // Process in chunks
+    int16_t* src = (int16_t*)buffer->data;
+    
+    // Temp buffer for scaled audio
+    int16_t* tempBuf = (int16_t*)malloc(chunkBytes);
+    if (!tempBuf) return;
+    
+    size_t processed = 0;
+    while (processed < totalBytes) {
+        size_t remaining = totalBytes - processed;
+        size_t currentChunk = (remaining > chunkBytes) ? chunkBytes : remaining;
+        size_t samples = currentChunk / 2;
+        
+        // Scale
+        for (size_t i = 0; i < samples; i++) {
+            int32_t val = src[(processed / 2) + i];
+            val = (val * volume) / 255;
+            tempBuf[i] = (int16_t)val;
+        }
+        
+        // Write to I2S (Blocking if DMA full)
+        // Since this is called from main loop (via playDownbeat -> playI2S), it might block UI.
+        // But for short clicks (50ms), it's fine.
+        // Wait! playDownbeat is called from Timer Interrupt in main loop?
+        // No, playDownbeat is called from main loop logic.
+        // If we block here for 50ms, the UI will freeze for 50ms. That's acceptable for a metronome click.
+        // Actually, i2s_write returns quickly if DMA buffer is large enough.
+        // We set dma_buf_count=8, len=64 -> 512 samples -> ~11ms.
+        // If sound is 50ms, we will block for ~40ms.
+        // To avoid blocking, we should use a task.
+        // But for now, let's try direct write.
+        
+        i2s_write(I2S_NUM, tempBuf, currentChunk, &bytesWritten, portMAX_DELAY);
+        processed += currentChunk;
+    }
+    
+    free(tempBuf);
+    
+    // Write some silence to flush?
+    // i2s_zero_dma_buffer(I2S_NUM); // This clears the buffer, might cut off sound.
+    // Better to write 0s.
+    // int16_t silence[64] = {0};
+    // i2s_write(I2S_NUM, silence, 128, &bytesWritten, portMAX_DELAY);
+}
+#endif
+
 void SoundManager::playDownbeat() {
+    #ifdef USE_I2S_AUDIO
+    playI2S(&downbeat);
+    #else
     if (!downbeat.data) return;
     portENTER_CRITICAL(&timerMux);
     playing = false;
@@ -349,9 +416,13 @@ void SoundManager::playDownbeat() {
     playing = true;
     timerAlarmEnable(timer); // Enable timer
     portEXIT_CRITICAL(&timerMux);
+    #endif
 }
 
 void SoundManager::playBeat() {
+    #ifdef USE_I2S_AUDIO
+    playI2S(&beat);
+    #else
     if (!beat.data) return;
     portENTER_CRITICAL(&timerMux);
     playing = false;
@@ -363,6 +434,7 @@ void SoundManager::playBeat() {
     playing = true;
     timerAlarmEnable(timer); // Enable timer
     portEXIT_CRITICAL(&timerMux);
+    #endif
 }
 
 void SoundManager::setVolume(uint8_t vol) {

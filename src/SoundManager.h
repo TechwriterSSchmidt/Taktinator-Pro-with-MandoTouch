@@ -5,8 +5,22 @@
 #include <vector>
 #include <FS.h>
 #include <LittleFS.h>
-#include <SD.h>
 #include <Preferences.h>
+#include <driver/i2s.h>
+
+// --- CONFIG ---
+#define USE_I2S_AUDIO  // Comment out to use internal DAC (Pin 26)
+// --------------
+
+#ifdef USE_I2S_AUDIO
+  // GPIO 21 is LCD Backlight (Causes flickering!)
+  // GPIO 35 is Input Only (Cannot be BCLK!)
+  // Recommended CYD I2S Pins:
+  #define I2S_BCLK  27 // P3/CN1 Header (Side)
+  #define I2S_LRCK  1  // TX Pin on UART/P1 Header (Connector Pin!)
+  #define I2S_DOUT  3  // RX Pin on UART/P1 Header (Connector Pin!)
+  #define I2S_NUM   I2S_NUM_0
+#endif
 
 enum SoundType {
     SOUND_DOWNBEAT,
@@ -14,25 +28,25 @@ enum SoundType {
 };
 
 struct AudioBuffer {
-    uint8_t* data = nullptr;
-    size_t size = 0;
+    uint8_t* data = nullptr; // Stores 16-bit signed samples (cast to int16_t*) if I2S, else 8-bit unsigned
+    size_t size = 0;         // Size in bytes
     uint32_t sampleRate = 44100;
     uint16_t channels = 1;
-    uint16_t bitsPerSample = 8;
+    uint16_t bitsPerSample = 16; // 16 for I2S, 8 for DAC
 };
 
 class SoundManager {
 public:
     SoundManager();
     bool begin();
-    std::vector<String> listWavsOnSD();
-    bool selectSound(SoundType type, String sdFilename);
+    std::vector<String> listWavs();
+    bool selectSound(SoundType type, String filename);
     void playDownbeat();
     void playBeat();
     void setVolume(uint8_t vol);
     bool areSoundsLoaded() { return downbeat.data != nullptr && beat.data != nullptr; }
     
-    // Called by timer interrupt
+    // Called by timer interrupt (DAC Mode only)
     void IRAM_ATTR handleInterrupt();
 
 private:
@@ -46,7 +60,10 @@ private:
     volatile bool playing = false;
     
     bool loadWavToBuffer(String path, AudioBuffer& buffer);
-    void copyFile(fs::FS &fsSource, String pathSource, fs::FS &fsDest, String pathDest);
+    
+    #ifdef USE_I2S_AUDIO
+    void playI2S(AudioBuffer* buffer);
+    #endif
 };
 
 extern SoundManager soundManager;

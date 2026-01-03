@@ -6,6 +6,13 @@
 #include "SoundManager.h"
 
 // --- Hardware Definitions ---
+// I2S Pins (MAX98357A)
+// BCLK -> GPIO 27 (Side Connector P3/CN1)
+// LRCK -> GPIO 1  (UART Connector P1 - TX Pin)
+// DIN  -> GPIO 3  (UART Connector P1 - RX Pin)
+// VIN  -> 5V
+// GND  -> GND
+
 TFT_eSPI tft = TFT_eSPI();
 
 // Touch Screen Pins (CYD)
@@ -278,61 +285,60 @@ void drawEditor() {
 // --- Sound Select Screen ---
 void drawSoundSelect() {
     tft.fillScreen(TFT_BLACK);
-    tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    tft.setTextDatum(TC_DATUM);
-    tft.setTextSize(2);
-    tft.drawString("Select Sound", 160, 5);
     
-    // Target Toggle
+    // Tabs
+    int tabW = 145;
+    int tabH = 35;
+    
+    // Tab 1: Downbeat
+    uint16_t c1 = (targetSoundType == SOUND_DOWNBEAT) ? TFT_GREEN : TFT_DARKGREY;
+    tft.fillRoundRect(10, 5, tabW, tabH, 5, c1);
+    tft.setTextColor(TFT_WHITE, c1);
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextSize(2);
+    tft.drawString("Downbeat", 10 + tabW/2, 5 + tabH/2);
+    
+    // Tab 2: Upbeat
+    uint16_t c2 = (targetSoundType == SOUND_BEAT) ? TFT_GREEN : TFT_DARKGREY;
+    tft.fillRoundRect(165, 5, tabW, tabH, 5, c2);
+    tft.setTextColor(TFT_WHITE, c2);
+    tft.drawString("Upbeat", 165 + tabW/2, 5 + tabH/2);
+
+    // File List
+    tft.drawRect(10, 50, 240, 150, TFT_WHITE); 
     tft.setTextSize(2);
     tft.setTextDatum(TL_DATUM);
-    if (targetSoundType == SOUND_DOWNBEAT) {
-        tft.setTextColor(TFT_GREEN, TFT_BLACK);
-        tft.drawString("> Downbeat", 20, 35);
-        tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-        tft.drawString("  Beat", 180, 35);
-    } else {
-        tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-        tft.drawString("  Downbeat", 20, 35);
-        tft.setTextColor(TFT_GREEN, TFT_BLACK);
-        tft.drawString("> Beat", 180, 35);
-    }
     
-    // File List
-    tft.drawRect(10, 60, 240, 130, TFT_WHITE); // Reduced width for scroll buttons
-    tft.setTextSize(2);
-    
-    int y = 65; // Moved up slightly
-    for (int i = soundListScroll; i < wavFiles.size() && i < soundListScroll + 4; i++) {
+    int y = 55; 
+    for (int i = soundListScroll; i < wavFiles.size() && i < soundListScroll + 5; i++) {
         if (i == selectedSoundIndex) tft.setTextColor(TFT_YELLOW, TFT_BLACK);
         else tft.setTextColor(TFT_WHITE, TFT_BLACK);
         
         String dispName = wavFiles[i];
-        if (dispName.length() > 18) {
-            dispName = dispName.substring(0, 15) + "...";
+        if (dispName.length() > 20) {
+            dispName = dispName.substring(0, 17) + "...";
         }
-        tft.drawString(dispName, 20, y);
-        y += 32; // Reduced spacing
+        tft.drawString(dispName, 25, y); // Moved slightly right (20->25)
+        y += 28; 
     }
 
     // Scroll Buttons
     tft.setTextDatum(MC_DATUM);
-    tft.drawRoundRect(260, 60, 50, 60, 5, TFT_DARKGREY);
-    tft.drawString("/\\", 285, 90); // Up
+    tft.drawRoundRect(260, 50, 50, 70, 5, TFT_DARKGREY);
+    tft.drawString("/\\", 285, 85); // Up
     
-    tft.drawRoundRect(260, 130, 50, 60, 5, TFT_DARKGREY);
-    tft.drawString("\\/", 285, 160); // Down
+    tft.drawRoundRect(260, 130, 50, 70, 5, TFT_DARKGREY);
+    tft.drawString("\\/", 285, 165); // Down
     
     // Controls
-    int yBase = 200; // Moved up from 220
+    int yBase = 210; 
     tft.setTextDatum(MC_DATUM);
-    tft.drawRoundRect(10, yBase, 80, 35, 5, TFT_BLUE); tft.drawString("BACK", 50, yBase + 17);
-    tft.drawRoundRect(100, yBase, 100, 35, 5, TFT_ORANGE); tft.drawString("REFRESH", 150, yBase + 17);
+    tft.drawRoundRect(10, yBase, 100, 35, 5, TFT_BLUE); tft.drawString("BACK", 60, yBase + 17);
     tft.drawRoundRect(210, yBase, 100, 35, 5, TFT_GREEN); tft.drawString("SELECT", 260, yBase + 17);
 }
 
 void refreshSoundList() {
-    wavFiles = soundManager.listWavsOnSD();
+    wavFiles = soundManager.listWavs();
     
     selectedSoundIndex = -1;
     soundListScroll = 0;
@@ -340,16 +346,20 @@ void refreshSoundList() {
 }
 
 void handleTouchSoundSelect(int x, int y) {
-    // Toggle Target
-    if (y > 30 && y < 55) {
-        if (x < 160) targetSoundType = SOUND_DOWNBEAT;
-        else targetSoundType = SOUND_BEAT;
-        drawSoundSelect();
+    // Tabs
+    if (y < 45) {
+        if (x > 10 && x < 155) {
+            targetSoundType = SOUND_DOWNBEAT;
+            drawSoundSelect();
+        } else if (x > 165 && x < 310) {
+            targetSoundType = SOUND_BEAT;
+            drawSoundSelect();
+        }
         return;
     }
-    
+
     // Scroll Up
-    if (x > 260 && y > 60 && y < 120) {
+    if (x > 260 && y > 50 && y < 120) {
         if (soundListScroll > 0) {
             soundListScroll--;
             drawSoundSelect();
@@ -358,8 +368,8 @@ void handleTouchSoundSelect(int x, int y) {
     }
 
     // Scroll Down
-    if (x > 260 && y > 130 && y < 190) {
-        if (soundListScroll + 4 < wavFiles.size()) {
+    if (x > 260 && y > 130 && y < 200) {
+        if (soundListScroll + 5 < wavFiles.size()) {
             soundListScroll++;
             drawSoundSelect();
         }
@@ -367,8 +377,8 @@ void handleTouchSoundSelect(int x, int y) {
     }
     
     // List Selection
-    if (x < 250 && y > 60 && y < 190) { // Adjusted range and width
-        int idx = (y - 65) / 32 + soundListScroll;
+    if (x < 250 && y > 50 && y < 200) { 
+        int idx = (y - 55) / 28 + soundListScroll;
         if (idx >= 0 && idx < wavFiles.size()) {
             selectedSoundIndex = idx;
             drawSoundSelect();
@@ -376,26 +386,22 @@ void handleTouchSoundSelect(int x, int y) {
         return;
     }
     
-    int yBase = 200;
+    int yBase = 210;
     // BACK
-    if (y > yBase && x < 90) {
+    if (y > yBase && x < 110) {
         toggleSoundSelect();
         return;
     }
-    // REFRESH
-    if (y > yBase && x > 100 && x < 200) {
-        refreshSoundList();
-        return;
-    }
+
     // SELECT
     if (y > yBase && x > 210) {
         if (selectedSoundIndex >= 0 && selectedSoundIndex < wavFiles.size()) {
             tft.fillScreen(TFT_BLACK);
-            tft.drawString("Copying...", 160, 120);
+            tft.drawString("Loading...", 160, 120);
             
             soundManager.selectSound(targetSoundType, wavFiles[selectedSoundIndex]);
             
-            drawSoundSelect();
+            toggleSoundSelect(); 
         }
     }
 }
