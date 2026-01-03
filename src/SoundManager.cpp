@@ -60,29 +60,23 @@ bool SoundManager::begin() {
     i2s_zero_dma_buffer(I2S_NUM);
     #endif
     
-    // Load saved sounds from LittleFS to RAM
-    // Default to Standard if not set
-    String dbPath = prefs.getString("dbPath", "/Standard_Downbeat.wav");
-    String bPath = prefs.getString("bPath", "/Standard_Beat.wav");
+    // Load default sounds (Metro)
+    // User requested to always start with Metro sounds
+    String dbPath = "/Metro_Downbeat.wav";
+    String bPath = "/Metro_Beat.wav";
 
-    Serial.print("Loading "); Serial.println(dbPath);
-    bool dbLoaded = loadWavToBuffer(dbPath, downbeat);
-    
-    if (!dbLoaded) {
-        Serial.println("Failed to load downbeat. Trying fallback...");
-        if (loadWavToBuffer("/Standard_Downbeat.wav", downbeat)) {
-             dbPath = "/Standard_Downbeat.wav";
-             prefs.putString("dbPath", dbPath);
-        }
+    Serial.print("Loading Default "); Serial.println(dbPath);
+    if (loadSound(SOUND_DOWNBEAT, dbPath)) {
+        Serial.println("Downbeat Loaded");
+    } else {
+        Serial.println("Failed to load Default Downbeat!");
     }
 
-    Serial.print("Loading "); Serial.println(bPath);
-    bool bLoaded = loadWavToBuffer(bPath, beat);
-    if (!bLoaded) {
-         if (loadWavToBuffer("/Standard_Beat.wav", beat)) {
-             bPath = "/Standard_Beat.wav";
-             prefs.putString("bPath", bPath);
-         }
+    Serial.print("Loading Default "); Serial.println(bPath);
+    if (loadSound(SOUND_BEAT, bPath)) {
+        Serial.println("Beat Loaded");
+    } else {
+        Serial.println("Failed to load Default Beat!");
     }
     
     #ifndef USE_I2S_AUDIO
@@ -190,31 +184,36 @@ bool SoundManager::isValidWav(String path) {
     return true;
 }
 
+bool SoundManager::loadSound(SoundType type, String fullPath) {
+    if (!fullPath.startsWith("/")) fullPath = "/" + fullPath;
+    
+    bool success = false;
+    if (type == SOUND_DOWNBEAT) {
+        if (loadWavToBuffer(fullPath, downbeat)) {
+            currentDownbeatPath = fullPath;
+            success = true;
+        }
+    } else {
+        if (loadWavToBuffer(fullPath, beat)) {
+            currentBeatPath = fullPath;
+            success = true;
+        }
+    }
+    return success;
+}
+
 bool SoundManager::selectSound(SoundType type, String filename) {
     // Filename is just the prefix (e.g. "Standard")
     Serial.print("Selecting Sound for Type "); Serial.print(type); Serial.print(": "); Serial.println(filename);
     
-    bool success = false;
-
+    String path;
     if (type == SOUND_DOWNBEAT) {
-        String dbPath = "/" + filename + "_Downbeat.wav";
-        if (loadWavToBuffer(dbPath, downbeat)) {
-            prefs.putString("dbPath", dbPath);
-            success = true;
-        } else {
-            Serial.println("Failed to load Downbeat: " + dbPath);
-        }
+        path = "/" + filename + "_Downbeat.wav";
     } else {
-        String bPath = "/" + filename + "_Beat.wav";
-        if (loadWavToBuffer(bPath, beat)) {
-            prefs.putString("bPath", bPath);
-            success = true;
-        } else {
-            Serial.println("Failed to load Beat: " + bPath);
-        }
+        path = "/" + filename + "_Beat.wav";
     }
     
-    return success;
+    return loadSound(type, path);
 }
 
 bool SoundManager::loadWavToBuffer(String path, AudioBuffer& buffer) {

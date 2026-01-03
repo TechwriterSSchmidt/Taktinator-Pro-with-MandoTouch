@@ -110,7 +110,7 @@ def generate_sound_select():
     
     # List
     draw.rectangle([10, 40, 250, 180], outline=TFT_WHITE)
-    items = ["Standard", "Digital", "Rimshot", "Clave", "Cowbell"]
+    items = ["Metro", "Digital", "Rimshot", "Clave", "Cowbell"]
     y = 45
     for i, item in enumerate(items):
         color = TFT_YELLOW if i == 0 else TFT_WHITE

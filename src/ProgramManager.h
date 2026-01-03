@@ -90,9 +90,12 @@ public:
         }
     }
 
-    bool saveProgram(String path, const std::vector<SequenceStep>& sequence) {
+    bool saveProgram(String path, const std::vector<SequenceStep>& sequence, String dbPath, String bPath) {
         fs::File file = LittleFS.open(path, FILE_WRITE);
         if (!file) return false;
+
+        // Write Sound Header
+        file.printf("SOUNDS:%s,%s\n", dbPath.c_str(), bPath.c_str());
 
         for (const auto& step : sequence) {
             file.printf("%d,%d,%d\n", step.bars, step.beatsPerBar, step.bpm);
@@ -101,22 +104,35 @@ public:
         return true;
     }
 
-    bool loadProgram(String path, std::vector<SequenceStep>& sequence) {
+    bool loadProgram(String path, std::vector<SequenceStep>& sequence, String& dbPath, String& bPath) {
         fs::File file = LittleFS.open(path, FILE_READ);
         if (!file) return false;
 
         sequence.clear();
+        // Set defaults in case file has no sound info
+        dbPath = "/Metro_Downbeat.wav";
+        bPath = "/Metro_Beat.wav";
+
         while (file.available()) {
             String line = file.readStringUntil('\n');
             line.trim();
             if (line.length() > 0) {
-                int c1 = line.indexOf(',');
-                int c2 = line.lastIndexOf(',');
-                if (c1 > 0 && c2 > c1) {
-                    int bars = line.substring(0, c1).toInt();
-                    int bpb = line.substring(c1 + 1, c2).toInt();
-                    int bpm = line.substring(c2 + 1).toInt();
-                    sequence.push_back({bars, bpb, bpm});
+                if (line.startsWith("SOUNDS:")) {
+                    String sounds = line.substring(7);
+                    int comma = sounds.indexOf(',');
+                    if (comma > 0) {
+                        dbPath = sounds.substring(0, comma);
+                        bPath = sounds.substring(comma + 1);
+                    }
+                } else {
+                    int c1 = line.indexOf(',');
+                    int c2 = line.lastIndexOf(',');
+                    if (c1 > 0 && c2 > c1) {
+                        int bars = line.substring(0, c1).toInt();
+                        int bpb = line.substring(c1 + 1, c2).toInt();
+                        int bpm = line.substring(c2 + 1).toInt();
+                        sequence.push_back({bars, bpb, bpm});
+                    }
                 }
             }
         }

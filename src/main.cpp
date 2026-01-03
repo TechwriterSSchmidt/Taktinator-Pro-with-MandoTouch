@@ -610,7 +610,7 @@ void handleTouchEditor(int x, int y) {
     tft.drawString("Saving...", 160, 120);
     tft.drawString(savePath, 160, 150); // Show path being saved
     
-    if (programManager.saveProgram(savePath, sequence)) {
+    if (programManager.saveProgram(savePath, sequence, soundManager.getDownbeatPath(), soundManager.getBeatPath())) {
         delay(500);
         // Go back to Program Select
         currentScreen = SCREEN_PROGRAM_SELECT;
@@ -886,7 +886,10 @@ void handleTouchProgramSelect(int x, int y) {
         // EDIT
         if (x > 150 && x < 210) {
             if (selectedProgramIndex >= 0 && selectedProgramIndex < programFiles.size()) {
-                if (programManager.loadProgram(programFiles[selectedProgramIndex], sequence)) {
+                String dbPath, bPath;
+                if (programManager.loadProgram(programFiles[selectedProgramIndex], sequence, dbPath, bPath)) {
+                    soundManager.loadSound(SOUND_DOWNBEAT, dbPath);
+                    soundManager.loadSound(SOUND_BEAT, bPath);
                     currentProgramPath = programFiles[selectedProgramIndex];
                     currentScreen = SCREEN_EDITOR;
                     selectedStepIndex = 0;
@@ -908,7 +911,10 @@ void handleTouchProgramSelect(int x, int y) {
             } else {
                 // Play
                 if (selectedProgramIndex >= 0 && selectedProgramIndex < programFiles.size()) {
-                    if (programManager.loadProgram(programFiles[selectedProgramIndex], sequence)) {
+                    String dbPath, bPath;
+                    if (programManager.loadProgram(programFiles[selectedProgramIndex], sequence, dbPath, bPath)) {
+                        soundManager.loadSound(SOUND_DOWNBEAT, dbPath);
+                        soundManager.loadSound(SOUND_BEAT, bPath);
                         currentProgramPath = programFiles[selectedProgramIndex];
                         if (!sequence.empty()) {
                             isSequenceMode = true;

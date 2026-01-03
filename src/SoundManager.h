@@ -41,11 +41,15 @@ public:
     bool begin();
     std::vector<String> listWavs();
     bool selectSound(SoundType type, String filename);
+    bool loadSound(SoundType type, String fullPath);
     void playDownbeat();
     void playBeat();
     void setVolume(uint8_t vol);
     bool areSoundsLoaded() { return downbeat.data != nullptr && beat.data != nullptr; }
     
+    String getDownbeatPath() { return currentDownbeatPath; }
+    String getBeatPath() { return currentBeatPath; }
+
     // Called by timer interrupt (DAC Mode only)
     void IRAM_ATTR handleInterrupt();
 
@@ -54,6 +58,9 @@ private:
     AudioBuffer downbeat;
     AudioBuffer beat;
     
+    String currentDownbeatPath;
+    String currentBeatPath;
+
     uint8_t volume = 255; // 0-255
     AudioBuffer* currentBuffer = nullptr;
     volatile size_t playIndex = 0;
