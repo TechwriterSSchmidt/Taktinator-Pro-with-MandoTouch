@@ -9,7 +9,7 @@ If you like this project, consider a tip. Your tip motivates me to continue deve
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/D1D01HVT9A)
 
 ## Features
-- **BPM Range:** 40 - 208 BPM (Standard Metronome Range).
+- **BPM Range:** 40 - 250 BPM (Standard Metronome Range).
 - **Controls:**
   - **Linear Slider:** Quickly swipe to set approximate tempo.
   - **Fine Tune Buttons:** Adjust tempo by +/- 1 or +/- 10 BPM.
