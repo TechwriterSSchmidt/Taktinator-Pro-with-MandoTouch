@@ -10,6 +10,7 @@ If you like this project, consider a tip. Your tip motivates me to continue deve
 
 ## Features
 - **BPM Range:** 40 - 250 BPM (Standard Metronome Range).
+- **Mandolin Tuner:** Built-in tuner with reference tones for G, D, A, E strings.
 - **Controls:**
   - **Linear Slider:** Quickly swipe to set approximate tempo.
   - **Fine Tune Buttons:** Adjust tempo by +/- 1 or +/- 10 BPM.
@@ -17,7 +18,9 @@ If you like this project, consider a tip. Your tip motivates me to continue deve
 - **Visuals:**
   - **MandoTouch Button:** A custom-drawn Mandolin icon serves as the Start/Stop button.
   - **Status Indication:** Button changes color (Green = Ready, Red = Playing) and animates on touch.
-- **Audio:** Generates a crisp 1kHz click sound (50ms duration) on each beat.
+- **Audio:** 
+  - High-quality I2S Audio output.
+  - **Default Sounds:** Classic Metronome (Woodblock style).
 
 ## User Interface
 
@@ -26,6 +29,8 @@ If you like this project, consider a tip. Your tip motivates me to continue deve
 | ![Main Screen](images/ui_main.png) | ![Sound Select](images/ui_sound.png) |
 | **Program Select** | **Program Editor** |
 | ![Program Select](images/ui_program.png) | ![Editor](images/ui_editor.png) |
+| **Mandolin Tuner** | |
+| ![Tuner](images/ui_tuner.png) | |
 
 ## Hardware
 - **Board:** ESP32-2432S028R (Cheap Yellow Display)

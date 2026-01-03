@@ -66,12 +66,16 @@ def generate_main_screen():
     
     # Title (Hidden by BPM in code, but let's draw BPM area)
     # BPM Area
-    draw.text((220, 35), "BPM", fill=TFT_CYAN)
+    draw.text((260, 35), "BPM", fill=TFT_CYAN)
     font_large = ImageFont.load_default() # Should be larger
-    draw.text((160, 25), "120", fill=TFT_CYAN, anchor="mm", font_size=30) # Simulated large font
+    draw.text((220, 25), "120", fill=TFT_CYAN, anchor="mm", font_size=30) # Simulated large font
     
+    # Idle Mandolin
+    draw_mandolin(draw, 290, 5, 20, 40, TFT_BLACK)
+
     # Buttons (Filled)
     draw_button(draw, 5, 5, 70, 40, "4/4", TFT_PURPLE, filled=True)
+    draw_button(draw, 80, 5, 70, 40, "TUNE", TFT_PURPLE, filled=True)
     
     draw_button(draw, 5, 55, 70, 60, "-10", TFT_BLUE, filled=True)
     draw_button(draw, 80, 55, 70, 60, "-1", TFT_NAVY, filled=True)
@@ -94,6 +98,26 @@ def generate_main_screen():
     draw.rectangle([75, 205, 75+170, 205+20], outline=TFT_WHITE)
     fill_w = int(170 * 0.5) # 50% volume
     draw.rectangle([76, 206, 76+fill_w, 206+18], fill=TFT_YELLOW)
+    
+    return img
+
+def generate_tuner_screen():
+    img = create_blank_screen()
+    draw = ImageDraw.Draw(img)
+    
+    draw.text((160, 10), "Mandolin Tuner", fill=TFT_WHITE, anchor="mt")
+    
+    # Strings
+    draw_button(draw, 20, 50, 60, 60, "G", TFT_BLUE, filled=False)
+    draw_button(draw, 95, 50, 60, 60, "D", TFT_BLUE, filled=False)
+    draw_button(draw, 170, 50, 60, 60, "A", TFT_BLUE, filled=False)
+    draw_button(draw, 245, 50, 60, 60, "E", TFT_BLUE, filled=False)
+    
+    # Stop
+    draw_button(draw, 110, 130, 100, 50, "STOP", TFT_RED, filled=False)
+    
+    # Back
+    draw_button(draw, 10, 200, 80, 35, "BACK", TFT_DARKGREY, filled=False)
     
     return img
 
@@ -227,4 +251,5 @@ if __name__ == "__main__":
     generate_sound_select().save(os.path.join(output_dir, "ui_sound.png"))
     generate_program_select().save(os.path.join(output_dir, "ui_program.png"))
     generate_editor().save(os.path.join(output_dir, "ui_editor.png"))
+    generate_tuner_screen().save(os.path.join(output_dir, "ui_tuner.png"))
     print("Mockups generated in images/")

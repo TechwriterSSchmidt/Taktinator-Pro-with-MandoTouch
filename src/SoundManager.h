@@ -44,6 +44,13 @@ public:
     bool loadSound(SoundType type, String fullPath);
     void playDownbeat();
     void playBeat();
+    void previewSound(String filename);
+    
+    // Tuner Functions
+    void startTone(float frequency);
+    void stopTone();
+    bool isTonePlaying() { return tonePlaying; }
+
     void setVolume(uint8_t vol);
     bool areSoundsLoaded() { return downbeat.data != nullptr && beat.data != nullptr; }
     
@@ -62,6 +69,13 @@ private:
     String currentBeatPath;
 
     uint8_t volume = 255; // 0-255
+    
+    // Tuner State
+    volatile bool tonePlaying = false;
+    volatile float toneFrequency = 440.0;
+    TaskHandle_t toneTaskHandle = nullptr;
+    
+    friend void toneTask(void* param);
     AudioBuffer* currentBuffer = nullptr;
     volatile size_t playIndex = 0;
     volatile bool playing = false;
