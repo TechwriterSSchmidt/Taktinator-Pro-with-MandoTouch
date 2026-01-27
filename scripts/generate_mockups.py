@@ -74,7 +74,7 @@ def generate_main_screen():
     # draw_mandolin(draw, 290, 5, 20, 40, TFT_BLACK) # Probably not needed here
 
     # Buttons (Filled)
-    draw_button(draw, 5, 5, 70, 40, "4/4", TFT_PURPLE, filled=True)
+    draw_button(draw, 5, 5, 145, 40, "4/4", TFT_PURPLE, filled=True)
     # TUNE button removed
     # draw_button(draw, 80, 5, 70, 40, "TUNE", TFT_PURPLE, filled=True) 
     

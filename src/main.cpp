@@ -224,7 +224,7 @@ Button buttons[] = {
 
   // Time Sig (Top Left)
 
-  {5, 5, 70, 40, "4/4", TFT_PURPLE, cycleTimeSig, false}, // Index 0
+  {5, 5, 145, 40, "4/4", TFT_PURPLE, cycleTimeSig, false}, // Index 0
 
 
 
