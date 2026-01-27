@@ -96,7 +96,7 @@ int currentBeat = 0; // 0 to beatsPerBar-1
 
 // --- Sequence / Program Mode ---
 
-enum ScreenState { SCREEN_MAIN, SCREEN_EDITOR, SCREEN_SOUND_SELECT, SCREEN_PROGRAM_SELECT, SCREEN_TUNER };
+enum ScreenState { SCREEN_MAIN, SCREEN_EDITOR, SCREEN_SOUND_SELECT, SCREEN_PROGRAM_SELECT };
 
 ScreenState currentScreen = SCREEN_MAIN;
 
@@ -184,8 +184,6 @@ void toggleSoundSelect();
 
 void toggleProgramSelect();
 
-void toggleTuner();
-
 void drawUI();
 
 void drawEditor();
@@ -194,15 +192,11 @@ void drawSoundSelect();
 
 void drawProgramSelect();
 
-void drawTuner();
-
 void refreshSoundList();
 
 void refreshProgramList();
 
 void handleTouchProgramSelect(int x, int y);
-
-void handleTouchTuner(int x, int y);
 
 
 
@@ -253,8 +247,6 @@ Button buttons[] = {
   {170, 125, 70, 60, "PROG", TFT_NAVY, toggleProgramSelect, false},
 
   {245, 125, 70, 60, "SND", TFT_MAROON, toggleSoundSelect, false},
-
-  {80, 5, 70, 40, "TUNE", TFT_PURPLE, toggleTuner, false},
 
 
 
@@ -1490,27 +1482,25 @@ void toggleMetronome() {
 
 
 void cycleTimeSig() {
-
-  if (beatsPerBar == 2) beatsPerBar = 3;
-
-  else if (beatsPerBar == 3) beatsPerBar = 4;
-
-  else if (beatsPerBar == 4) beatsPerBar = 5;
-
-  else if (beatsPerBar == 5) beatsPerBar = 6;
-
-  else if (beatsPerBar == 6) beatsPerBar = 7;
-
-  else if (beatsPerBar == 7) beatsPerBar = 9;
-
-  else beatsPerBar = 2;
-
+  // Defined Time Signatures
+  // 2(/4), 3(/4), 4(/4), 5(/4), 6(/8), 7(/8), 9(/8)
+  const int sigs[] = {2, 3, 4, 5, 6, 7, 9};
+  int numSigs = sizeof(sigs) / sizeof(sigs[0]);
   
-
+  int nextSig = sigs[0]; // Default to start
+  
+  for (int i = 0; i < numSigs; i++) {
+    if (beatsPerBar == sigs[i]) {
+        // Found current, move to next (circular)
+        nextSig = sigs[(i + 1) % numSigs];
+        break;
+    }
+  }
+  
+  beatsPerBar = nextSig;
+  
   currentBeat = 0; 
-
   updateTimeSig();
-
 }
 
 
@@ -2215,16 +2205,6 @@ void loop() {
 
                }
 
-            } else if (currentScreen == SCREEN_TUNER) {
-
-               if (millis() - lastTouchTime > 200) {
-
-                  handleTouchTuner(touchX, touchY);
-
-                  lastTouchTime = millis();
-
-               }
-
             } else {
 
         
@@ -2275,96 +2255,4 @@ void loop() {
 
   }
 
-}
-
-
-
-
-void toggleTuner() {
-    if (currentScreen == SCREEN_MAIN) {
-        currentScreen = SCREEN_TUNER;
-        // Stop metronome if playing
-        if (isPlaying) {
-            isPlaying = false;
-            drawButton(5);
-        }
-        drawTuner();
-    } else {
-        currentScreen = SCREEN_MAIN;
-        soundManager.stopTone();
-        drawUI();
-    }
-}
-
-void drawTuner() {
-    tft.fillScreen(TFT_BLACK);
-    tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    tft.setTextDatum(TC_DATUM);
-    tft.setTextSize(2);
-    tft.drawString("Mandolin Tuner", 160, 10);
-    
-    // Draw Strings
-    // G3 (196.00 Hz)
-    tft.drawRoundRect(20, 50, 60, 60, 5, TFT_BLUE);
-    tft.drawString("G", 50, 70);
-    
-    // D4 (293.66 Hz)
-    tft.drawRoundRect(95, 50, 60, 60, 5, TFT_BLUE);
-    tft.drawString("D", 125, 70);
-    
-    // A4 (440.00 Hz)
-    tft.drawRoundRect(170, 50, 60, 60, 5, TFT_BLUE);
-    tft.drawString("A", 200, 70);
-    
-    // E5 (659.25 Hz)
-    tft.drawRoundRect(245, 50, 60, 60, 5, TFT_BLUE);
-    tft.drawString("E", 275, 70);
-    
-    // Stop Button
-    tft.drawRoundRect(110, 130, 100, 50, 5, TFT_RED);
-    tft.drawString("STOP", 160, 145);
-    
-    // Back Button
-    tft.drawRoundRect(10, 200, 80, 35, 5, TFT_DARKGREY);
-    tft.drawString("BACK", 50, 210);
-    
-    // Status
-    if (soundManager.isTonePlaying()) {
-        tft.setTextColor(TFT_GREEN, TFT_BLACK);
-        tft.drawString("Playing...", 160, 190);
-    }
-}
-
-void handleTouchTuner(int x, int y) {
-    // G (20, 50, 60, 60)
-    if (x > 20 && x < 80 && y > 50 && y < 110) {
-        soundManager.startTone(196.00);
-        drawTuner();
-    }
-    // D (95, 50, 60, 60)
-    if (x > 95 && x < 155 && y > 50 && y < 110) {
-        soundManager.startTone(293.66);
-        drawTuner();
-    }
-    // A (170, 50, 60, 60)
-    if (x > 170 && x < 230 && y > 50 && y < 110) {
-        soundManager.startTone(440.00);
-        drawTuner();
-    }
-    // E (245, 50, 60, 60)
-    if (x > 245 && x < 305 && y > 50 && y < 110) {
-        soundManager.startTone(659.25);
-        drawTuner();
-    }
-    
-    // STOP (110, 130, 100, 50)
-    if (x > 110 && x < 210 && y > 130 && y < 180) {
-        soundManager.stopTone();
-        drawTuner();
-    }
-    
-    // BACK (10, 200, 80, 35)
-    if (x > 10 && x < 90 && y > 200 && y < 235) {
-        toggleTuner();
-    }
 }

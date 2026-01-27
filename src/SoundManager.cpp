@@ -34,69 +34,7 @@ SoundManager::SoundManager() {}
 
 #ifdef USE_I2S_AUDIO
 
-// Task to feed I2S for Tone Generation
-
-void toneTask(void* param) {
-
-    SoundManager* sm = (SoundManager*)param;
-
-    size_t bytesWritten;
-
-    int sampleRate = 44100;
-
-    float phase = 0;
-
-    const int chunkSize = 512;
-
-    int16_t buffer[chunkSize];
-
-    
-
-    while(1) {
-
-        if (sm->tonePlaying) {
-
-            float phaseIncrement = (2.0f * PI * sm->toneFrequency) / sampleRate;
-
-            
-
-            for (int i = 0; i < chunkSize; i++) {
-
-                // Generate Sine Wave
-
-                float val = sin(phase);
-
-                // Scale by volume (0-255) -> 0-1.0 * 32767
-
-                // Reduce max amplitude slightly to avoid clipping
-
-                int16_t sample = (int16_t)(val * 30000.0f * (sm->volume / 255.0f));
-
-                buffer[i] = sample;
-
-                
-
-                phase += phaseIncrement;
-
-                if (phase >= 2.0f * PI) phase -= 2.0f * PI;
-
-            }
-
-            
-
-            i2s_write(I2S_NUM, buffer, chunkSize * sizeof(int16_t), &bytesWritten, portMAX_DELAY);
-
-        } else {
-
-            // Suspend self or wait
-
-            vTaskDelay(pdMS_TO_TICKS(100));
-
-        }
-
-    }
-
-}
+// I2S Task removed (Tone Gen)
 
 #endif
 
@@ -167,13 +105,7 @@ bool SoundManager::begin() {
     i2s_set_pin(I2S_NUM, &pin_config);
 
     i2s_zero_dma_buffer(I2S_NUM);
-
     
-
-    // Create Tone Task
-
-    xTaskCreatePinnedToCore(toneTask, "ToneTask", 4096, this, 1, &toneTaskHandle, 1);
-
     #endif
 
     
@@ -1092,21 +1024,6 @@ void IRAM_ATTR SoundManager::handleInterrupt() {
 
     dacWrite(26, output);
 
-}
-
-
-
-
-void SoundManager::startTone(float frequency) {
-    toneFrequency = frequency;
-    tonePlaying = true;
-}
-
-void SoundManager::stopTone() {
-    tonePlaying = false;
-    #ifdef USE_I2S_AUDIO
-    i2s_zero_dma_buffer(I2S_NUM);
-    #endif
 }
 
 void SoundManager::previewSound(String filename) {
